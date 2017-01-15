@@ -1,0 +1,20 @@
+{
+    "name": "ceddyg/query-builder-repository",
+    "description": "Repository using query builder. To return a Collection of stdClass or a simple stdClass. It's faster and use less memory than Eloquent if you just want data from database.",
+    "keywords": ["laravel", "repository", "fluent", "query-builder"],
+    "authors": [
+        {
+            "name": "CeddyG"
+        }
+    ],
+    "license": "MIT",
+    "require": {
+        "php": ">=5.4.0",
+        "illuminate/support": "~5.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "CeddyG\\QueryBuilderRepository": "src/"
+        }
+    }
+}
