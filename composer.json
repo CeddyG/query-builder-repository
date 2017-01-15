@@ -14,7 +14,7 @@
     },
     "autoload": {
         "psr-4": {
-            "CeddyG\\QueryBuilderRepository": "src/"
+            "CeddyG\\QueryBuilderRepository\\": "src/"
         }
     }
 }
