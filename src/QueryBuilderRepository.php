@@ -6,7 +6,6 @@ use DB;
 use File;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -69,6 +68,13 @@ abstract class QueryBuilderRepository
      * @var array
      */
     protected $aFillable = [];
+
+    /**
+     * The relationships that should be eager loaded.
+     *
+     * @var array
+     */
+    protected $aEagerLoad = [];
 
     public function __construct()
     {
@@ -367,14 +373,19 @@ abstract class QueryBuilderRepository
      */
     public function belongsTo($sRepository, $sForeignKey = null)
     {
-        $oRepository = new $sRepository();
-        $sForeignKey = $sForeignKey ?: Str::snake($oRepository->getTable()).'_id';
+        $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
-        $this->aBelongsTo[] = [
-            'name'          => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'],
-            'repository'    => $oRepository,
-            'foreign_key'   => $sForeignKey
-        ];
+        if (array_search($sName, array_column($this->aBelongsTo, 'name')) === false)
+        {
+            $oRepository = new $sRepository();
+            $sForeignKey = $sForeignKey ?: Str::snake($oRepository->getTable()).'_id';
+
+            $this->aBelongsTo[] = [
+                'name'          => $sName,
+                'repository'    => $oRepository,
+                'foreign_key'   => $sForeignKey
+            ];
+        }
     }
     
     /**
@@ -394,17 +405,22 @@ abstract class QueryBuilderRepository
         $sOtherForeignKey   = null
     )
     {
-        $oRepository        = new $sRepository();
-        $sForeignKey        = $sForeignKey ?: Str::snake($this->sTable).'_id';
-        $sOtherForeignKey   = $sOtherForeignKey ?: Str::snake($oRepository->getTable()).'_id';
+        $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
-        $this->aBelongsToMany[] = [
-            'name'              => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'],
-            'repository'        => $oRepository,
-            'table_pivot'       => $sPivotTable,
-            'foreign_key'       => $sForeignKey,
-            'other_foreign_key' => $sOtherForeignKey
-        ];
+        if (array_search($sName, array_column($this->aBelongsToMany, 'name')) === false)
+        {
+            $oRepository        = new $sRepository();
+            $sForeignKey        = $sForeignKey ?: Str::snake($this->sTable).'_id';
+            $sOtherForeignKey   = $sOtherForeignKey ?: Str::snake($oRepository->getTable()).'_id';
+
+            $this->aBelongsToMany[] = [
+                'name'              => $sName,
+                'repository'        => $oRepository,
+                'table_pivot'       => $sPivotTable,
+                'foreign_key'       => $sForeignKey,
+                'other_foreign_key' => $sOtherForeignKey
+            ];
+        }
     }
     
     /**
@@ -417,14 +433,19 @@ abstract class QueryBuilderRepository
      */
     public function hasMany($sRepository, $sForeignKey = null)
     {
-        $oRepository = new $sRepository();
-        $sForeignKey = $sForeignKey ?: Str::snake($this->sTable).'_id';
+        $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
-        $this->aHasMany[] = [
-            'name'          => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'],
-            'repository'    => $oRepository,
-            'foreign_key'   => $sForeignKey
-        ];
+        if (array_search($sName, array_column($this->aHasMany, 'name')) === false)
+        {
+            $oRepository = new $sRepository();
+            $sForeignKey = $sForeignKey ?: Str::snake($this->sTable).'_id';
+
+            $this->aHasMany[] = [
+                'name'          => $sName,
+                'repository'    => $oRepository,
+                'foreign_key'   => $sForeignKey
+            ];
+        }
     }
     
     /**
@@ -488,7 +509,9 @@ abstract class QueryBuilderRepository
         $sPrimaryKey = $oRepository->getPrimaryKey();
         $aIdrelation = $oQuery->pluck($sForeignKey)->unique()->all();
         
-        $oQueryRelation = $oRepository->findWhereIn($sPrimaryKey, $aIdrelation);
+        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName]: ['*'];
+                
+        $oQueryRelation = $oRepository->findWhereIn($sPrimaryKey, $aIdrelation, $aEagerLoad);
                 
         $oQuery->transform(
             function ($oItem, $i) use ($sName, $sPrimaryKey, $sForeignKey, $oQueryRelation)
@@ -529,8 +552,10 @@ abstract class QueryBuilderRepository
         
         $aIdrelation = $oTablePivot->pluck($sOtherForeignKey)->unique()->all();
         
+        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName]: ['*'];
+        
         $oQueryRelation = $oRepository
-            ->findWhereIn($oRepository->getPrimaryKey(), $aIdrelation);
+            ->findWhereIn($oRepository->getPrimaryKey(), $aIdrelation, $aEagerLoad);
          
         $oQuery->transform(
             function ($oItem, $i) 
@@ -577,8 +602,10 @@ abstract class QueryBuilderRepository
         
         $aIdrelation = $oQuery->pluck($sPrimaryKey)->unique()->all();
         
+        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName]: ['*'];
+        
         $oQueryRelation = $oRepository
-            ->findWhereIn($sForeignKey, $aIdrelation);
+            ->findWhereIn($sForeignKey, $aIdrelation, $aEagerLoad);
         
         $oQuery->transform(
             function ($oItem, $i) 
@@ -623,8 +650,19 @@ abstract class QueryBuilderRepository
         
         foreach ($aColumns as $iKey => $column)
         {
+            if (strpos($column, '.') !== false)
+            {
+                $aColumn    = explode('.', $column, 2);
+                $column     = $aColumn[0];            
+            }
+            
             if (method_exists($this, $column))
             {
+                if (isset($aColumn[1]))
+                {
+                    $this->aEagerLoad[$column][] = $aColumn[1];
+                }
+                
                 $this->$column();
                 
                 unset($aColumns[$iKey]);
