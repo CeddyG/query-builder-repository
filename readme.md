@@ -3,6 +3,14 @@ Query Builder Repository
 
 Laravel Repository using Query Builder (Fluent) instead of Eloquent. It returns a Collection of StdClass or a simple StdClass. It can receive arrays to create or update a record in the database and also delete a record or multiple record.
 
+## Installation
+
+```php
+
+composer require ceddyg/query-builder-repository
+
+```
+
 ## Usage
 
 ### Create a repository
@@ -14,7 +22,7 @@ By default the table will take the snake case of the repository's name without "
 ```php
 namespace App\Repositories;
 
-use Ceddyg\QueryBuilderRepository\QueryBuilderRepository;
+use CeddyG\QueryBuilderRepository\QueryBuilderRepository;
 
 class ProductRepository extends QueryBuilderRepository
 {
