@@ -16,5 +16,6 @@
         "psr-4": {
             "CeddyG\\QueryBuilderRepository\\": "src/"
         }
-    }
+    },
+    "minimum-stability": "stable"
 }
