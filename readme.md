@@ -6,9 +6,7 @@ Laravel Repository using Query Builder (Fluent) instead of Eloquent. It returns 
 ## Installation
 
 ```php
-
 composer require ceddyg/query-builder-repository
-
 ```
 
 ## Usage
