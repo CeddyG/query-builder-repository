@@ -15,7 +15,7 @@ composer require ceddyg/query-builder-repository
 
 Firstly you have to create a repository and define the table, primary key and fillable.
 
-By default the table will take the snake case of the repository's name without "Repository" and primary key is "id" by default.
+By default the table will take the snake case in the plural of the repository's name without "Repository" and primary key is "id" by default.
 
 ```php
 namespace App\Repositories;
@@ -24,8 +24,8 @@ use CeddyG\QueryBuilderRepository\QueryBuilderRepository;
 
 class ProductRepository extends QueryBuilderRepository
 {
-    //By default $sTable = 'product'
-    protected $sTable = 'products';
+    //By default $sTable = 'products'
+    protected $sTable = 'product';
 
     //By default $sPrimaryKey = 'id'
     protected $sPrimaryKey = 'id_products';
@@ -380,9 +380,9 @@ foreach ($oProduct->tag as $oTag)
 
 ## ToDo List
 
-- Eagerloading with relation
-- Add relation in Datatable
+- Add relation in Datatable (done, but without eagerloading)
 - Add relation in getFillFromView
 - Add limit and order
+- Add through relation
 - Mix paginate and avaible methods
 - Add a command to generate repository

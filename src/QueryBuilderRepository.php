@@ -83,8 +83,10 @@ abstract class QueryBuilderRepository
             $this->sTable = preg_replace(
                 '~_repository(?!.*_repository)~', 
                 '', 
-                snake_case((new \ReflectionClass($this))->getShortName())
+                str_replace('\\', '', Str::snake(class_basename($this)))
             );
+            
+            $this->sTable = Str::plural($this->sTable);
         }
     }
     
@@ -738,6 +740,8 @@ abstract class QueryBuilderRepository
             array_column($aData['columns'], 'data')
         );
         
+        $this->setColumns($aColumns);
+        
         $oQuery = DB::table($this->sTable);
         
         $sSearch = $aData['search']['value'];
@@ -764,7 +768,7 @@ abstract class QueryBuilderRepository
         $aOutput = array_merge([
             'recordsTotal'      => $iTotal,
             'recordsFiltered'   => $iTotal,
-            'data'              => $oObjects
+            'data'              => $this->setResponse($oObjects)
         ], $aData);
         
         return new JsonResponse($aOutput);
