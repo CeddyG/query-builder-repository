@@ -35,6 +35,20 @@ abstract class QueryBuilderRepository
     protected $sPrimaryKey  = 'id';
     
     /**
+     * Set config to order
+     * 
+     * @var array
+     */
+    protected $aOrderBy = [];
+    
+    /**
+     * Set config to limit
+     * 
+     * @var array 
+     */
+    protected $aLimit = [];
+
+    /**
      * List of the Belongs to relation.
      * 
      * @var array
@@ -68,7 +82,7 @@ abstract class QueryBuilderRepository
      * @var array
      */
     protected $aFillable = [];
-
+    
     /**
      * The relationships that should be eager loaded.
      *
@@ -77,7 +91,7 @@ abstract class QueryBuilderRepository
     protected $aEagerLoad = [];
 
     public function __construct()
-    {
+    {        
         if ($this->sTable == '')
         {
             $this->sTable = preg_replace(
@@ -114,7 +128,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $aQuery = DB::table($this->sTable)->get($aColumns);
+        $aQuery = $this->setQuery()->get($aColumns);
         
         return $this->setResponse($aQuery);
     }
@@ -130,7 +144,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $aQuery = DB::table($this->sTable)->take(1)->get($aColumns);
+        $aQuery = $this->setQuery()->take(1)->get($aColumns);
         
         return $this->setResponse($aQuery)->first();
     }
@@ -148,7 +162,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $aQuery = DB::table($this->sTable)
+        $aQuery = $this->setQuery()
             ->paginate($iLimit, $aColumns, $sPageName, $iPage);
         
         $oQuery = $this->setResponse($aQuery);
@@ -168,7 +182,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $aQuery = DB::table($this->sTable)
+        $aQuery = $this->setQuery()
             ->where($this->sPrimaryKey, $id)
             ->get($aColumns);
         
@@ -264,6 +278,75 @@ abstract class QueryBuilderRepository
             ->get($aColumns);
         
         return $this->setResponse($aQuery);
+    }
+    
+    /**
+     * Find record in given fields.
+     * 
+     * @param string $sSearch
+     * @param array $aFiealdToSearch
+     * @param array $aColumns
+     * 
+     * @return \Illuminate\Database\Eloquent\Collection|static[]
+     */
+    public function search($sSearch, array $aFiealdToSearch, array $aColumns = ['*'])
+    {
+        $this->setColumns($aColumns);
+        
+        $oQuery = $this->setQuery();
+        
+        if ($sSearch != '')
+        {
+            foreach ($aFiealdToSearch as $sColumn)
+            {
+                $oQuery->orWhere($sColumn, 'like', '%'. $sSearch .'%');
+            }
+        }
+    
+        $oObjects = $oQuery->get($aColumns);
+        
+        return $this->setResponse($oObjects);
+    }
+    
+    public function count()
+    {
+        return DB::table($this->sTable)->count();
+    }
+    
+    /**
+     * Add order by to the query.
+     * 
+     * @param string $sField
+     * @param string $sDirection
+     * 
+     * @return \Ceddyg\QueryBuilderRepository\QueryBuilderRepository
+     */
+    public function orderBy($sField, $sDirection = 'asc')
+    {
+        $this->aOrderBy = [
+            'field'     => $sField,
+            'direction' => $sDirection
+        ];
+        
+        return $this;
+    }
+    
+    /**
+     * Add limit to the query.
+     * 
+     * @param int $iOffset
+     * @param int $iLength
+     * 
+     * @return \Ceddyg\QueryBuilderRepository\QueryBuilderRepository
+     */
+    public function limit($iOffset, $iLength)
+    {
+        $this->aLimit = [
+            'offset' => (int) $iOffset,
+            'length' => (int) $iLength
+        ];
+        
+        return $this;
     }
     
     /**
@@ -373,7 +456,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    public function belongsTo($sRepository, $sForeignKey = null)
+    protected function belongsTo($sRepository, $sForeignKey = null)
     {
         $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
@@ -400,7 +483,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    public function belongsToMany(
+    protected function belongsToMany(
         $sRepository, 
         $sPivotTable, 
         $sForeignKey        = null, 
@@ -433,7 +516,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    public function hasMany($sRepository, $sForeignKey = null)
+    protected function hasMany($sRepository, $sForeignKey = null)
     {
         $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
@@ -448,6 +531,86 @@ abstract class QueryBuilderRepository
                 'foreign_key'   => $sForeignKey
             ];
         }
+    }
+    
+    /**
+     * Set columns to be use in the query.
+     * 
+     * Note : Relations are considered as colmuns, but not used in the query.
+     * 
+     * @param array $aColumns
+     * 
+     * @return void
+     */
+    private function setColumns(array &$aColumns)
+    {
+        if (!empty($this->aFillForQuery))
+        {
+            if (in_array('*', $aColumns))
+            {
+                $aColumns = $this->aFillForQuery;
+            }
+            else
+            {
+                $aColumns = array_merge($aColumns, $this->aFillForQuery);
+            }
+        }
+        
+        foreach ($aColumns as $iKey => $column)
+        {
+            if (strpos($column, '.') !== false)
+            {
+                $aColumn    = explode('.', $column, 2);
+                $column     = $aColumn[0];            
+            }
+            
+            if (method_exists($this, $column))
+            {
+                if (isset($aColumn[1]))
+                {
+                    $this->aEagerLoad[$column][] = $aColumn[1];
+                }
+                
+                $this->$column();
+                
+                unset($aColumns[$iKey]);
+            }
+        }
+        
+        if (empty($aColumns))
+        {
+            $aColumns[] = '*';
+        }
+        
+        if (!in_array('*', $aColumns))
+        {
+            $aColumns[] = $this->sPrimaryKey;
+            
+            foreach ($this->aBelongsTo as $aBelongsTo)
+            {
+                $aColumns[] = $aBelongsTo['foreign_key'];
+            }
+        }
+        
+        $this->aFillForQuery = [];
+    }
+    
+    private function setQuery()
+    {
+        $oQuery = DB::table($this->sTable);
+        
+        if (!empty($this->aOrderBy))
+        {
+            $oQuery->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction']);
+        }
+        
+        if (!empty($this->aLimit))
+        {
+            $oQuery->offset($this->aLimit['offset'])
+                ->limit($this->aLimit['length']);
+        }
+        
+        return $oQuery;
     }
     
     /**
@@ -492,6 +655,11 @@ abstract class QueryBuilderRepository
         {
             $this->belongsToManyQuery($relation, $oQuery);
         }
+        
+        $this->aBelongsTo       = [];
+        $this->aHasMany         = [];
+        $this->aBelongsToMany   = [];
+        $this->aEagerLoad       = [];
     }
     
     /**
@@ -511,8 +679,8 @@ abstract class QueryBuilderRepository
         $sPrimaryKey = $oRepository->getPrimaryKey();
         $aIdrelation = $oQuery->pluck($sForeignKey)->unique()->all();
         
-        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName]: ['*'];
-                
+        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
+        
         $oQueryRelation = $oRepository->findWhereIn($sPrimaryKey, $aIdrelation, $aEagerLoad);
                 
         $oQuery->transform(
@@ -554,7 +722,7 @@ abstract class QueryBuilderRepository
         
         $aIdrelation = $oTablePivot->pluck($sOtherForeignKey)->unique()->all();
         
-        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName]: ['*'];
+        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
         $oQueryRelation = $oRepository
             ->findWhereIn($oRepository->getPrimaryKey(), $aIdrelation, $aEagerLoad);
@@ -604,7 +772,7 @@ abstract class QueryBuilderRepository
         
         $aIdrelation = $oQuery->pluck($sPrimaryKey)->unique()->all();
         
-        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName]: ['*'];
+        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
         $oQueryRelation = $oRepository
             ->findWhereIn($sForeignKey, $aIdrelation, $aEagerLoad);
@@ -625,66 +793,6 @@ abstract class QueryBuilderRepository
                 return $oItem;
             }
         );
-    }
-    
-    /**
-     * Set columns to be use in the query.
-     * 
-     * Note : Relations are considered as colmuns, but not used in the query.
-     * 
-     * @param array $aColumns
-     * 
-     * @return void
-     */
-    private function setColumns(&$aColumns)
-    {
-        if (!empty($this->aFillForQuery))
-        {
-            if (in_array('*', $aColumns))
-            {
-                $aColumns = $this->aFillForQuery;
-            }
-            else
-            {
-                $aColumns = array_merge($aColumns, $this->aFillForQuery);
-            }
-        }
-        
-        foreach ($aColumns as $iKey => $column)
-        {
-            if (strpos($column, '.') !== false)
-            {
-                $aColumn    = explode('.', $column, 2);
-                $column     = $aColumn[0];            
-            }
-            
-            if (method_exists($this, $column))
-            {
-                if (isset($aColumn[1]))
-                {
-                    $this->aEagerLoad[$column][] = $aColumn[1];
-                }
-                
-                $this->$column();
-                
-                unset($aColumns[$iKey]);
-            }
-        }
-        
-        if (empty($aColumns))
-        {
-            $aColumns[] = '*';
-        }
-        
-        if (!in_array('*', $aColumns))
-        {
-            $aColumns[] = $this->sPrimaryKey;
-            
-            foreach ($this->aBelongsTo as $aBelongsTo)
-            {
-                $aColumns[] = $aBelongsTo['foreign_key'];
-            }
-        }
     }
 
     /**
@@ -740,35 +848,19 @@ abstract class QueryBuilderRepository
             array_column($aData['columns'], 'data')
         );
         
-        $this->setColumns($aColumns);
-        
-        $oQuery = DB::table($this->sTable);
-        
-        $sSearch = $aData['search']['value'];
-        
-        if ($sSearch != '')
-        {
-            foreach ($aColumns as $sColumn)
-            {
-                $oQuery->orWhere($sColumn, 'like', '%'. $sSearch .'%');
-            }
-        }
-        
         $aOrder = $aData['order'][0];
         $sOrder = $aColumns[$aOrder['column']];
         
-        $oObjects = $oQuery
-            ->offset((int) $aData['start'])
-            ->limit((int) $aData['length'])
-            ->orderBy($sOrder, $aOrder['dir'])
-            ->get($aColumns);
+        $oQuery = $this->orderBy($sOrder, $aOrder['dir'])
+            ->limit($aData['start'], $aData['length'])
+            ->search($aData['search']['value'], $aColumns, $aColumns);
         
-        $iTotal = DB::table($this->sTable)->count();
+        $iTotal = $this->count();
         
         $aOutput = array_merge([
             'recordsTotal'      => $iTotal,
             'recordsFiltered'   => $iTotal,
-            'data'              => $this->setResponse($oObjects)
+            'data'              => $oQuery
         ], $aData);
         
         return new JsonResponse($aOutput);
