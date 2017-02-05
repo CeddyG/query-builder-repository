@@ -314,7 +314,9 @@ $oRepository = new ProductRepository();
 
 $oProducts = $oRepository->orderBy('name')->all();
 //or
-$oProduct = $oRepository->orderBy('id', 'desc')->find(1, ['name']);
+$oProducts = $oRepository->orderBy('name')->findWhere(['categorie_id', 1]);
+//or
+$oProduct = $oRepository->orderBy('id', 'desc')->find(1, ['name']); //Useless
 ```
 
 #### limit
