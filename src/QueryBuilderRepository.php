@@ -6,6 +6,7 @@ use DB;
 use File;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -202,7 +203,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $aQuery = DB::table($this->sTable)
+        $aQuery = $this->setQuery()
             ->where($sField, $mValue)
             ->get($aColumns);
         
@@ -221,7 +222,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $oQuery = DB::table($this->sTable);
+        $oQuery = $this->setQuery();
         
         foreach($aWhere as $iKey => $mCondition)
         {
@@ -253,7 +254,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $aQuery = DB::table($this->sTable)
+        $aQuery = $this->setQuery()
             ->whereIn($sField, $aWhere)
             ->get($aColumns);
         
@@ -273,7 +274,7 @@ abstract class QueryBuilderRepository
     {
         $this->setColumns($aColumns);
         
-        $aQuery = DB::table($this->sTable)
+        $aQuery = $this->setQuery()
             ->whereNotIn($sField, $aWhere)
             ->get($aColumns);
         
@@ -291,21 +292,64 @@ abstract class QueryBuilderRepository
      */
     public function search($sSearch, array $aFiealdToSearch, array $aColumns = ['*'])
     {
-        $this->setColumns($aColumns);
-        
-        $oQuery = $this->setQuery();
-        
         if ($sSearch != '')
         {
+            $oQuery = $this->setQuery();
+            
             foreach ($aFiealdToSearch as $sColumn)
             {
+                if (strpos($sColumn, '.') !== false)
+                {
+                    $aColumn = explode('.', $sColumn, 2);
+                    $sColumn = $aColumn[0];            
+                }
+                
+                if (method_exists($this, $sColumn))
+                {
+                    $sRelation = isset($aColumn[1]) ? $sColumn.'.'.$aColumn[1] : $sColumn;
+                    $this->setJoin($oQuery, $sRelation);
+                    
+                    $aRelation = explode('.', $sRelation);
+                    $sColumn = 
+                        $aRelation[count($aRelation)-2]
+                        .'.'.
+                        $aRelation[count($aRelation)-1];
+                    
+                    if (isset($aColumn))
+                    {
+                        unset($aColumn);
+                    }
+                }
+                else
+                {
+                    $sColumn = $this->sTable.'.'.$sColumn;
+                }
+                
                 $oQuery->orWhere($sColumn, 'like', '%'. $sSearch .'%');
             }
+            
+            $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey)
+                ->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction'])
+                ->get([$this->sTable.'.'.$this->sPrimaryKey]);
+            
+            if (!$mId instanceof Collection)
+            {
+                $mId = collect($mId);
+            }
+            
+            $aId = $mId->pluck($this->sPrimaryKey)
+                ->unique()
+                ->all();
         }
-    
-        $oObjects = $oQuery->get($aColumns);
-        
-        return $this->setResponse($oObjects);
+            
+        if (isset($aId))
+        {
+            return $this->findWhereIn($this->sPrimaryKey, $aId, $aColumns);
+        }
+        else
+        {
+            return $this->all($aColumns);
+        }
     }
     
     public function count()
@@ -556,22 +600,22 @@ abstract class QueryBuilderRepository
             }
         }
         
-        foreach ($aColumns as $iKey => $column)
+        foreach ($aColumns as $iKey => $sColumn)
         {
-            if (strpos($column, '.') !== false)
+            if (strpos($sColumn, '.') !== false)
             {
-                $aColumn    = explode('.', $column, 2);
-                $column     = $aColumn[0];            
+                $aColumn = explode('.', $sColumn, 2);
+                $sColumn = $aColumn[0];            
             }
             
-            if (method_exists($this, $column))
+            if (method_exists($this, $sColumn))
             {
                 if (isset($aColumn[1]))
                 {
-                    $this->aEagerLoad[$column][] = $aColumn[1];
+                    $this->aEagerLoad[$sColumn][] = $aColumn[1];
                 }
                 
-                $this->$column();
+                $this->$sColumn();
                 
                 unset($aColumns[$iKey]);
             }
@@ -584,24 +628,40 @@ abstract class QueryBuilderRepository
         
         if (!in_array('*', $aColumns))
         {
-            $aColumns[] = $this->sPrimaryKey;
+            if (!in_array($this->sPrimaryKey, $aColumns))
+            {
+                $aColumns[] = $this->sPrimaryKey;
+            }
             
             foreach ($this->aBelongsTo as $aBelongsTo)
             {
                 $aColumns[] = $aBelongsTo['foreign_key'];
+            }
+            
+            $aColumns       = array_values($aColumns);
+            $iTotalColumns  = count($aColumns);
+            
+            for ($i = 0 ; $i < $iTotalColumns ; $i++)
+            {
+                $aColumns[$i] = $this->sTable.'.'.$aColumns[$i];
             }
         }
         
         $this->aFillForQuery = [];
     }
     
+    /**
+     * Create the query
+     * 
+     * @return object
+     */
     private function setQuery()
     {
         $oQuery = DB::table($this->sTable);
         
-        if (!empty($this->aOrderBy))
+        if (!empty($this->aOrderBy) && strpos($this->aOrderBy['field'], '.') === false)
         {
-            $oQuery->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction']);
+            $oQuery->orderBy($this->sTable.'.'.$this->aOrderBy['field'], $this->aOrderBy['direction']);
         }
         
         if (!empty($this->aLimit))
@@ -611,6 +671,92 @@ abstract class QueryBuilderRepository
         }
         
         return $oQuery;
+    }
+    
+    /**
+     * Set the join to the query
+     * 
+     * @param object $oQuery
+     * @param string $sRelation
+     * 
+     * @return void
+     */
+    public function setJoin(&$oQuery, $sRelation)
+    {
+        $this->aBelongsTo       = [];
+        $this->aHasMany         = [];
+        $this->aBelongsToMany   = [];
+        
+        if (strpos($sRelation, '.') !== false)
+        {
+            $aRelation  = explode('.', $sRelation, 2);
+            $sRelation  = $aRelation[0];            
+        }
+
+        if (method_exists($this, $sRelation))
+        {
+            $this->$sRelation();
+            
+            if (!empty($this->aBelongsTo))
+            {
+                $sName          = $this->aBelongsTo[0]['name'];
+                $sForeignKey    = $this->aBelongsTo[0]['foreign_key'];
+                $oRepository    = $this->aBelongsTo[0]['repository'];
+            
+                $oQuery->leftJoin(
+                    $oRepository->getTable().' as '.$sName, 
+                    $sName.'.'.$oRepository->getPrimaryKey(), 
+                    '=', 
+                    $this->sTable.'.'.$sForeignKey
+                );
+            }
+            
+            if (!empty($this->aHasMany))
+            {
+                $sName          = $this->aHasMany[0]['name'];
+                $sForeignKey    = $this->aHasMany[0]['foreign_key'];
+                $oRepository    = $this->aHasMany[0]['repository'];
+            
+                $oQuery->leftJoin(
+                    $oRepository->getTable().' as '.$sName, 
+                    $sName.'.'.$sForeignKey, 
+                    '=', 
+                    $this->sTable.'.'.$this->sPrimaryKey
+                );
+            }
+            
+            if (!empty($this->aBelongsToMany))
+            {
+                $sName              = $this->aBelongsToMany[0]['name'];
+                $oRepository        = $this->aBelongsToMany[0]['repository'];
+                $sTablePivot        = $this->aBelongsToMany[0]['table_pivot'];
+                $sForeignKey        = $this->aBelongsToMany[0]['foreign_key'];
+                $sOtherForeignKey   = $this->aBelongsToMany[0]['other_foreign_key'];
+            
+                $oQuery->leftJoin(
+                    $sTablePivot,
+                    $sTablePivot.'.'.$sForeignKey, 
+                    '=', 
+                    $this->sTable.'.'.$this->sPrimaryKey
+                );
+            
+                $oQuery->leftJoin(
+                    $oRepository->getTable().' as '.$sName, 
+                    $sName.'.'.$oRepository->getPrimaryKey(), 
+                    '=', 
+                    $sTablePivot.'.'.$sOtherForeignKey
+                );
+            }
+            
+            if (isset($aRelation[1]))
+            {
+                $oRepository->setJoin($oQuery, $aRelation[1]);
+            }
+        }
+        
+        $this->aBelongsTo       = [];
+        $this->aHasMany         = [];
+        $this->aBelongsToMany   = [];
     }
     
     /**
@@ -854,6 +1000,39 @@ abstract class QueryBuilderRepository
         $oQuery = $this->orderBy($sOrder, $aOrder['dir'])
             ->limit($aData['start'], $aData['length'])
             ->search($aData['search']['value'], $aColumns, $aColumns);
+        
+        $oQuery->transform(function ($oItem, $iKey) use ($aColumns)
+        {
+            foreach ($oItem as $sAttribute => $mValue)
+            {
+                if ($mValue instanceof Collection)
+                {
+                    $oItem->$sAttribute = (object) ['name' => implode(' / ', $mValue->pluck('name')->toArray())];
+                }
+            }
+            
+            return $oItem;
+        });
+        
+        if (strpos($this->aOrderBy['field'], '.') !== false)
+        {
+            $aOrder     = explode('.', $this->aOrderBy['field']);
+            $sRelation  = $aOrder[0];
+            $sAttribute = $aOrder[1];
+            
+            if ($this->aOrderBy['direction'] == 'asc')
+            {
+                $oQuery = $oQuery->sortBy(function ($oItem, $iKey) use ($sRelation, $sAttribute){
+                    return $oItem->$sRelation->$sAttribute;
+                })->values();
+            }
+            else
+            {
+                $oQuery = $oQuery->sortByDesc(function ($oItem, $iKey) use ($sRelation, $sAttribute){
+                    return $oItem->$sRelation->$sAttribute;
+                })->values();
+            }
+        }
         
         $iTotal = $this->count();
         

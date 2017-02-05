@@ -55,6 +55,8 @@ class ProductRepository extends QueryBuilderRepository
 - [getTable](#getTable)
 - [getPrimaryKey](#getPrimaryKey)
 - [getFillFromView](#getFillFromView)
+- [orderBy] (#orderBy)
+- [limit] (#limit)
 - [datatable](#datatable)
 
 #### all
@@ -303,6 +305,32 @@ public function indexAjax(Request $oRequest)
 }
 ```
 
+#### orderBy
+
+Order by a given field and direction. By defalut, the direction is 'asc'.
+
+```php
+$oRepository = new ProductRepository();
+
+$oProducts = $oRepository->orderBy('name')->all();
+//or
+$oProduct = $oRepository->orderBy('id', 'desc')->find(1, ['name']);
+```
+
+#### limit
+
+Limit the query.
+
+```php
+$oRepository = new ProductRepository();
+
+$oProducts = $oRepository->limit(0, 10)->all(); //Will take the first 10 records
+//or
+$oProducts = $oRepository->limit(5, 5)->all(); //Will take the 5 records after the 5th record.
+//or
+$oProduct = $oRepository->limit(0, 10)->find(1, ['name']); //Useless
+```
+
 ## Relationship
 
 To configure relationship, it's like Eloquent, you have to define a belongsTo, belongsToMany or hasMany with other repositories.
@@ -382,7 +410,6 @@ foreach ($oProduct->tag as $oTag)
 
 - Add relation in Datatable (done, but without eagerloading)
 - Add relation in getFillFromView
-- Add limit and order
 - Add through relation
 - Mix paginate and avaible methods
 - Add a command to generate repository
