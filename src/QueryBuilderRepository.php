@@ -683,9 +683,7 @@ abstract class QueryBuilderRepository
      */
     public function setJoin(&$oQuery, $sRelation)
     {
-        $this->aBelongsTo       = [];
-        $this->aHasMany         = [];
-        $this->aBelongsToMany   = [];
+        $this->flushRelation();
         
         if (strpos($sRelation, '.') !== false)
         {
@@ -697,56 +695,9 @@ abstract class QueryBuilderRepository
         {
             $this->$sRelation();
             
-            if (!empty($this->aBelongsTo))
-            {
-                $sName          = $this->aBelongsTo[0]['name'];
-                $sForeignKey    = $this->aBelongsTo[0]['foreign_key'];
-                $oRepository    = $this->aBelongsTo[0]['repository'];
-            
-                $oQuery->leftJoin(
-                    $oRepository->getTable().' as '.$sName, 
-                    $sName.'.'.$oRepository->getPrimaryKey(), 
-                    '=', 
-                    $this->sTable.'.'.$sForeignKey
-                );
-            }
-            
-            if (!empty($this->aHasMany))
-            {
-                $sName          = $this->aHasMany[0]['name'];
-                $sForeignKey    = $this->aHasMany[0]['foreign_key'];
-                $oRepository    = $this->aHasMany[0]['repository'];
-            
-                $oQuery->leftJoin(
-                    $oRepository->getTable().' as '.$sName, 
-                    $sName.'.'.$sForeignKey, 
-                    '=', 
-                    $this->sTable.'.'.$this->sPrimaryKey
-                );
-            }
-            
-            if (!empty($this->aBelongsToMany))
-            {
-                $sName              = $this->aBelongsToMany[0]['name'];
-                $oRepository        = $this->aBelongsToMany[0]['repository'];
-                $sTablePivot        = $this->aBelongsToMany[0]['table_pivot'];
-                $sForeignKey        = $this->aBelongsToMany[0]['foreign_key'];
-                $sOtherForeignKey   = $this->aBelongsToMany[0]['other_foreign_key'];
-            
-                $oQuery->leftJoin(
-                    $sTablePivot,
-                    $sTablePivot.'.'.$sForeignKey, 
-                    '=', 
-                    $this->sTable.'.'.$this->sPrimaryKey
-                );
-            
-                $oQuery->leftJoin(
-                    $oRepository->getTable().' as '.$sName, 
-                    $sName.'.'.$oRepository->getPrimaryKey(), 
-                    '=', 
-                    $sTablePivot.'.'.$sOtherForeignKey
-                );
-            }
+            $this->setLeftJoinOnBelongsTo($oQuery);
+            $this->setLeftJoinOnBelongsToMany($oQuery);
+            $this->setLeftJoinOnHasMany($oQuery);
             
             if (isset($aRelation[1]))
             {
@@ -754,9 +705,88 @@ abstract class QueryBuilderRepository
             }
         }
         
-        $this->aBelongsTo       = [];
-        $this->aHasMany         = [];
-        $this->aBelongsToMany   = [];
+        $this->flushRelation();
+    }
+    
+    /**
+     * Add left join query to a given query, if a "belongs to" relation is set
+     * 
+     * @param type $oQuery
+     * 
+     * @return void
+     */
+    private function setLeftJoinOnBelongsTo(&$oQuery)
+    {
+        if (!empty($this->aBelongsTo))
+        {
+            $sName          = $this->aBelongsTo[0]['name'];
+            $sForeignKey    = $this->aBelongsTo[0]['foreign_key'];
+            $oRepository    = $this->aBelongsTo[0]['repository'];
+
+            $oQuery->leftJoin(
+                $oRepository->getTable().' as '.$sName, 
+                $sName.'.'.$oRepository->getPrimaryKey(), 
+                '=', 
+                $this->sTable.'.'.$sForeignKey
+            );
+        }
+    }
+    
+    /**
+     * Add left join query to a given query, if a "belongs to many" relation is set
+     * 
+     * @param type $oQuery
+     * 
+     * @return void
+     */
+    private function setLeftJoinOnBelongsToMany(&$oQuery)
+    {
+        if (!empty($this->aBelongsToMany))
+        {
+            $sName              = $this->aBelongsToMany[0]['name'];
+            $oRepository        = $this->aBelongsToMany[0]['repository'];
+            $sTablePivot        = $this->aBelongsToMany[0]['table_pivot'];
+            $sForeignKey        = $this->aBelongsToMany[0]['foreign_key'];
+            $sOtherForeignKey   = $this->aBelongsToMany[0]['other_foreign_key'];
+
+            $oQuery->leftJoin(
+                $sTablePivot,
+                $sTablePivot.'.'.$sForeignKey, 
+                '=', 
+                $this->sTable.'.'.$this->sPrimaryKey
+            );
+
+            $oQuery->leftJoin(
+                $oRepository->getTable().' as '.$sName, 
+                $sName.'.'.$oRepository->getPrimaryKey(), 
+                '=', 
+                $sTablePivot.'.'.$sOtherForeignKey
+            );
+        }
+    }
+    
+    /**
+     * Add left join query to a given query, if a "belongs to" relation is set
+     * 
+     * @param type $oQuery
+     * 
+     * @return void
+     */
+    private function setLeftJoinOnHasMany(&$oQuery)
+    {
+        if (!empty($this->aHasMany))
+        {
+            $sName          = $this->aHasMany[0]['name'];
+            $sForeignKey    = $this->aHasMany[0]['foreign_key'];
+            $oRepository    = $this->aHasMany[0]['repository'];
+
+            $oQuery->leftJoin(
+                $oRepository->getTable().' as '.$sName, 
+                $sName.'.'.$sForeignKey, 
+                '=', 
+                $this->sTable.'.'.$this->sPrimaryKey
+            );
+        }
     }
     
     /**
@@ -802,10 +832,50 @@ abstract class QueryBuilderRepository
             $this->belongsToManyQuery($relation, $oQuery);
         }
         
+        $this->flushRelation();
+        $this->aEagerLoad = [];
+    }
+    
+    /**
+     * Empty the relations array
+     * 
+     * @return void
+     */
+    private function flushRelation()
+    {
         $this->aBelongsTo       = [];
         $this->aHasMany         = [];
         $this->aBelongsToMany   = [];
-        $this->aEagerLoad       = [];
+    }
+    
+    /**
+     * Sort a collection if an order by on a relation is set
+     * 
+     * @param type $oQuery
+     * 
+     * @return void
+     */
+    private function sortCollectionByRelation(&$oQuery)
+    {
+        if (strpos($this->aOrderBy['field'], '.') !== false)
+        {
+            $aOrder     = explode('.', $this->aOrderBy['field']);
+            $sRelation  = $aOrder[0];
+            $sAttribute = $aOrder[1];
+            
+            if ($this->aOrderBy['direction'] == 'asc')
+            {
+                $oQuery = $oQuery->sortBy(function ($oItem, $iKey) use ($sRelation, $sAttribute){
+                    return $oItem->$sRelation->$sAttribute;
+                })->values();
+            }
+            else
+            {
+                $oQuery = $oQuery->sortByDesc(function ($oItem, $iKey) use ($sRelation, $sAttribute){
+                    return $oItem->$sRelation->$sAttribute;
+                })->values();
+            }
+        }
     }
     
     /**
@@ -1014,25 +1084,7 @@ abstract class QueryBuilderRepository
             return $oItem;
         });
         
-        if (strpos($this->aOrderBy['field'], '.') !== false)
-        {
-            $aOrder     = explode('.', $this->aOrderBy['field']);
-            $sRelation  = $aOrder[0];
-            $sAttribute = $aOrder[1];
-            
-            if ($this->aOrderBy['direction'] == 'asc')
-            {
-                $oQuery = $oQuery->sortBy(function ($oItem, $iKey) use ($sRelation, $sAttribute){
-                    return $oItem->$sRelation->$sAttribute;
-                })->values();
-            }
-            else
-            {
-                $oQuery = $oQuery->sortByDesc(function ($oItem, $iKey) use ($sRelation, $sAttribute){
-                    return $oItem->$sRelation->$sAttribute;
-                })->values();
-            }
-        }
+        $this->sortCollectionByRelation($oQuery);
         
         $iTotal = $this->count();
         
