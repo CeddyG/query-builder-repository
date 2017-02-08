@@ -90,6 +90,13 @@ abstract class QueryBuilderRepository
      * @var array
      */
     protected $aEagerLoad = [];
+    
+    /**
+     * Total record found
+     * 
+     * @var int
+     */
+    protected $iTotalFiltered = 0;
 
     public function __construct()
     {        
@@ -294,7 +301,8 @@ abstract class QueryBuilderRepository
     {
         if ($sSearch != '')
         {
-            $oQuery = $this->setQuery();
+            $oQuery         = $this->setQuery();
+            $oQueryToCount  = DB::table($this->sTable);
             
             foreach ($aFiealdToSearch as $sColumn)
             {
@@ -308,6 +316,7 @@ abstract class QueryBuilderRepository
                 {
                     $sRelation = isset($aColumn[1]) ? $sColumn.'.'.$aColumn[1] : $sColumn;
                     $this->setJoin($oQuery, $sRelation);
+                    $this->setJoin($oQueryToCount, $sRelation);
                     
                     $aRelation = explode('.', $sRelation);
                     $sColumn = 
@@ -326,7 +335,11 @@ abstract class QueryBuilderRepository
                 }
                 
                 $oQuery->orWhere($sColumn, 'like', '%'. $sSearch .'%');
+                $oQueryToCount->orWhere($sColumn, 'like', '%'. $sSearch .'%');
             }
+            
+            $this->iTotalFiltered = $oQueryToCount
+                ->count(DB::raw('DISTINCT '.$this->sTable.'.'.$this->sPrimaryKey));
             
             $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey)
                 ->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction'])
@@ -340,6 +353,8 @@ abstract class QueryBuilderRepository
             $aId = $mId->pluck($this->sPrimaryKey)
                 ->unique()
                 ->all();
+            
+            $this->aLimit = [];
         }
             
         if (isset($aId))
@@ -695,11 +710,11 @@ abstract class QueryBuilderRepository
         {
             $this->$sRelation();
             
-            $this->setLeftJoinOnBelongsTo($oQuery);
-            $this->setLeftJoinOnBelongsToMany($oQuery);
-            $this->setLeftJoinOnHasMany($oQuery);
+            $oRepository = $this->setLeftJoinOnBelongsTo($oQuery);
+            $oRepository = $this->setLeftJoinOnBelongsToMany($oQuery);
+            $oRepository = $this->setLeftJoinOnHasMany($oQuery);
             
-            if (isset($aRelation[1]))
+            if (isset($aRelation[1]) && $oRepository !== false)
             {
                 $oRepository->setJoin($oQuery, $aRelation[1]);
             }
@@ -729,6 +744,12 @@ abstract class QueryBuilderRepository
                 '=', 
                 $this->sTable.'.'.$sForeignKey
             );
+            
+            return $oRepository;
+        }
+        else
+        {
+            return false;
         }
     }
     
@@ -762,6 +783,12 @@ abstract class QueryBuilderRepository
                 '=', 
                 $sTablePivot.'.'.$sOtherForeignKey
             );
+            
+            return $oRepository;
+        }
+        else
+        {
+            return false;
         }
     }
     
@@ -786,6 +813,12 @@ abstract class QueryBuilderRepository
                 '=', 
                 $this->sTable.'.'.$this->sPrimaryKey
             );
+            
+            return $oRepository;
+        }
+        else
+        {
+            return false;
         }
     }
     
@@ -1090,7 +1123,7 @@ abstract class QueryBuilderRepository
         
         $aOutput = array_merge([
             'recordsTotal'      => $iTotal,
-            'recordsFiltered'   => $iTotal,
+            'recordsFiltered'   => ($this->iTotalFiltered == 0) ? $iTotal : $this->iTotalFiltered,
             'data'              => $oQuery
         ], $aData);
         
