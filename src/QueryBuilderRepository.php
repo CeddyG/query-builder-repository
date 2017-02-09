@@ -36,14 +36,14 @@ abstract class QueryBuilderRepository
     protected $sPrimaryKey  = 'id';
     
     /**
-     * Set config to order
+     * Set config to order.
      * 
      * @var array
      */
     protected $aOrderBy = [];
     
     /**
-     * Set config to limit
+     * Set config to limit.
      * 
      * @var array 
      */
@@ -92,7 +92,7 @@ abstract class QueryBuilderRepository
     protected $aEagerLoad = [];
     
     /**
-     * Total record found
+     * Total record found.
      * 
      * @var int
      */
@@ -113,7 +113,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Getter
+     * Getter.
      */    
     public function getTable()
     {
@@ -299,10 +299,11 @@ abstract class QueryBuilderRepository
      */
     public function search($sSearch, array $aFiealdToSearch, array $aColumns = ['*'])
     {
+        $oQuery = $this->setQuery();
+        
         if ($sSearch != '')
         {
-            $oQuery         = $this->setQuery();
-            $oQueryToCount  = DB::table($this->sTable);
+            $oQueryToCount = DB::table($this->sTable);
             
             foreach ($aFiealdToSearch as $sColumn)
             {
@@ -341,32 +342,31 @@ abstract class QueryBuilderRepository
             $this->iTotalFiltered = $oQueryToCount
                 ->count(DB::raw('DISTINCT '.$this->sTable.'.'.$this->sPrimaryKey));
             
-            $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey)
-                ->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction'])
-                ->get([$this->sTable.'.'.$this->sPrimaryKey]);
-            
-            if (!$mId instanceof Collection)
-            {
-                $mId = collect($mId);
-            }
-            
-            $aId = $mId->pluck($this->sPrimaryKey)
-                ->unique()
-                ->all();
-            
             $this->aLimit = [];
         }
             
-        if (isset($aId))
+        $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey)
+            ->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction'])
+            ->get([$this->sTable.'.'.$this->sPrimaryKey]);
+
+        if (!$mId instanceof Collection)
         {
-            return $this->findWhereIn($this->sPrimaryKey, $aId, $aColumns);
+            $mId = collect($mId);
         }
-        else
-        {
-            return $this->all($aColumns);
-        }
+
+        $aId = $mId->pluck($this->sPrimaryKey)
+            ->unique()
+            ->all();
+            
+        return $this->findWhereIn($this->sPrimaryKey, $aId, $aColumns);
+        
     }
     
+    /**
+     * Return the total record in a database.
+     * 
+     * @return int
+     */
     public function count()
     {
         return DB::table($this->sTable)->count();
@@ -666,7 +666,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Create the query
+     * Create the query.
      * 
      * @return object
      */
@@ -689,7 +689,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Set the join to the query
+     * Set the join to the query.
      * 
      * @param object $oQuery
      * @param string $sRelation
@@ -724,7 +724,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Add left join query to a given query, if a "belongs to" relation is set
+     * Add left join query to a given query, if a "belongs to" relation is set.
      * 
      * @param type $oQuery
      * 
@@ -754,7 +754,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Add left join query to a given query, if a "belongs to many" relation is set
+     * Add left join query to a given query, if a "belongs to many" relation is set.
      * 
      * @param type $oQuery
      * 
@@ -793,7 +793,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Add left join query to a given query, if a "belongs to" relation is set
+     * Add left join query to a given query, if a "belongs to" relation is set.
      * 
      * @param type $oQuery
      * 
@@ -870,7 +870,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Empty the relations array
+     * Empty the relations array.
      * 
      * @return void
      */
@@ -882,7 +882,7 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Sort a collection if an order by on a relation is set
+     * Sort a collection if an order by on a relation is set.
      * 
      * @param type $oQuery
      * 
