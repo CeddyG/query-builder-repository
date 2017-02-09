@@ -304,47 +304,57 @@ abstract class QueryBuilderRepository
         if ($sSearch != '')
         {
             $oQueryToCount = DB::table($this->sTable);
-            
-            foreach ($aFiealdToSearch as $sColumn)
+        }
+        
+        foreach ($aFiealdToSearch as $sColumn)
+        {
+            if (strpos($sColumn, '.') !== false)
             {
-                if (strpos($sColumn, '.') !== false)
-                {
-                    $aColumn = explode('.', $sColumn, 2);
-                    $sColumn = $aColumn[0];            
-                }
+                $aColumn = explode('.', $sColumn, 2);
+                $sColumn = $aColumn[0];            
+            }
+
+            if (method_exists($this, $sColumn))
+            {
+                $sRelation = isset($aColumn[1]) ? $sColumn.'.'.$aColumn[1] : $sColumn;
+                $this->setJoin($oQuery, $sRelation);
                 
-                if (method_exists($this, $sColumn))
+                if ($sSearch != '')
                 {
-                    $sRelation = isset($aColumn[1]) ? $sColumn.'.'.$aColumn[1] : $sColumn;
-                    $this->setJoin($oQuery, $sRelation);
                     $this->setJoin($oQueryToCount, $sRelation);
-                    
-                    $aRelation = explode('.', $sRelation);
-                    $sColumn = 
-                        $aRelation[count($aRelation)-2]
-                        .'.'.
-                        $aRelation[count($aRelation)-1];
-                    
-                    if (isset($aColumn))
-                    {
-                        unset($aColumn);
-                    }
                 }
-                else
+
+                $aRelation = explode('.', $sRelation);
+                $sColumn = 
+                    $aRelation[count($aRelation)-2]
+                    .'.'.
+                    $aRelation[count($aRelation)-1];
+
+                if (isset($aColumn))
                 {
-                    $sColumn = $this->sTable.'.'.$sColumn;
+                    unset($aColumn);
                 }
+            }
+            else
+            {
+                $sColumn = $this->sTable.'.'.$sColumn;
+            }
                 
+            if ($sSearch != '')
+            {
                 $oQuery->orWhere($sColumn, 'like', '%'. $sSearch .'%');
                 $oQueryToCount->orWhere($sColumn, 'like', '%'. $sSearch .'%');
             }
-            
+        }
+        
+        if ($sSearch != '')
+        {
             $this->iTotalFiltered = $oQueryToCount
                 ->count(DB::raw('DISTINCT '.$this->sTable.'.'.$this->sPrimaryKey));
-            
-            $this->aLimit = [];
         }
-            
+        
+        $this->aLimit = [];
+        
         $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey)
             ->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction'])
             ->get([$this->sTable.'.'.$this->sPrimaryKey]);
@@ -406,6 +416,30 @@ abstract class QueryBuilderRepository
         ];
         
         return $this;
+    }
+    
+    /**
+     * Check if a query already has a join relation.
+     * 
+     * @param \Illuminate\Database\Query\Builder $oQuery
+     * @param type $sTable
+     * 
+     * @return boolean
+     */
+    public function hasJoin($oQuery, $sTable)
+    {
+        if ($oQuery->joins !== null)
+        {
+            foreach($oQuery->joins as $oJoinClause)
+            {
+                if($oJoinClause->table == $sTable)
+                {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
     
     /**
@@ -691,7 +725,7 @@ abstract class QueryBuilderRepository
     /**
      * Set the join to the query.
      * 
-     * @param object $oQuery
+     * @param \Illuminate\Database\Query\Builder $oQuery
      * @param string $sRelation
      * 
      * @return void
@@ -710,11 +744,11 @@ abstract class QueryBuilderRepository
         {
             $this->$sRelation();
             
-            $oRepository = $this->setLeftJoinOnBelongsTo($oQuery);
-            $oRepository = $this->setLeftJoinOnBelongsToMany($oQuery);
-            $oRepository = $this->setLeftJoinOnHasMany($oQuery);
+            $this->setLeftJoinOnBelongsTo($oQuery, $oRepository);
+            $this->setLeftJoinOnBelongsToMany($oQuery, $oRepository);
+            $this->setLeftJoinOnHasMany($oQuery, $oRepository);
             
-            if (isset($aRelation[1]) && $oRepository !== false)
+            if (isset($aRelation[1]) && $oRepository !== null)
             {
                 $oRepository->setJoin($oQuery, $aRelation[1]);
             }
@@ -726,41 +760,38 @@ abstract class QueryBuilderRepository
     /**
      * Add left join query to a given query, if a "belongs to" relation is set.
      * 
-     * @param type $oQuery
+     * @param \Illuminate\Database\Query\Builder $oQuery
      * 
-     * @return void
+     * @return object|bool
      */
-    private function setLeftJoinOnBelongsTo(&$oQuery)
+    private function setLeftJoinOnBelongsTo(&$oQuery, &$oRepository = null)
     {
         if (!empty($this->aBelongsTo))
         {
             $sName          = $this->aBelongsTo[0]['name'];
             $sForeignKey    = $this->aBelongsTo[0]['foreign_key'];
             $oRepository    = $this->aBelongsTo[0]['repository'];
-
-            $oQuery->leftJoin(
-                $oRepository->getTable().' as '.$sName, 
-                $sName.'.'.$oRepository->getPrimaryKey(), 
-                '=', 
-                $this->sTable.'.'.$sForeignKey
-            );
-            
-            return $oRepository;
-        }
-        else
-        {
-            return false;
+ 
+            if (!$this->hasJoin($oQuery, $oRepository->getTable().' as '.$sName))
+            {
+                $oQuery->leftJoin(
+                    $oRepository->getTable().' as '.$sName, 
+                    $sName.'.'.$oRepository->getPrimaryKey(), 
+                    '=', 
+                    $this->sTable.'.'.$sForeignKey
+                );
+            }
         }
     }
     
     /**
      * Add left join query to a given query, if a "belongs to many" relation is set.
      * 
-     * @param type $oQuery
+     * @param \Illuminate\Database\Query\Builder $oQuery
      * 
-     * @return void
+     * @return object|bool
      */
-    private function setLeftJoinOnBelongsToMany(&$oQuery)
+    private function setLeftJoinOnBelongsToMany(&$oQuery, &$oRepository = null)
     {
         if (!empty($this->aBelongsToMany))
         {
@@ -770,36 +801,33 @@ abstract class QueryBuilderRepository
             $sForeignKey        = $this->aBelongsToMany[0]['foreign_key'];
             $sOtherForeignKey   = $this->aBelongsToMany[0]['other_foreign_key'];
 
-            $oQuery->leftJoin(
-                $sTablePivot,
-                $sTablePivot.'.'.$sForeignKey, 
-                '=', 
-                $this->sTable.'.'.$this->sPrimaryKey
-            );
+            if (!$this->hasJoin($oQuery, $oRepository->getTable().' as '.$sName))
+            {
+                $oQuery->leftJoin(
+                    $sTablePivot,
+                    $sTablePivot.'.'.$sForeignKey, 
+                    '=', 
+                    $this->sTable.'.'.$this->sPrimaryKey
+                );
 
-            $oQuery->leftJoin(
-                $oRepository->getTable().' as '.$sName, 
-                $sName.'.'.$oRepository->getPrimaryKey(), 
-                '=', 
-                $sTablePivot.'.'.$sOtherForeignKey
-            );
-            
-            return $oRepository;
-        }
-        else
-        {
-            return false;
+                $oQuery->leftJoin(
+                    $oRepository->getTable().' as '.$sName, 
+                    $sName.'.'.$oRepository->getPrimaryKey(), 
+                    '=', 
+                    $sTablePivot.'.'.$sOtherForeignKey
+                );
+            }
         }
     }
     
     /**
      * Add left join query to a given query, if a "belongs to" relation is set.
      * 
-     * @param type $oQuery
+     * @param \Illuminate\Database\Query\Builder $oQuery
      * 
-     * @return void
+     * @return object|bool
      */
-    private function setLeftJoinOnHasMany(&$oQuery)
+    private function setLeftJoinOnHasMany(&$oQuery, &$oRepository = null)
     {
         if (!empty($this->aHasMany))
         {
@@ -807,25 +835,22 @@ abstract class QueryBuilderRepository
             $sForeignKey    = $this->aHasMany[0]['foreign_key'];
             $oRepository    = $this->aHasMany[0]['repository'];
 
-            $oQuery->leftJoin(
-                $oRepository->getTable().' as '.$sName, 
-                $sName.'.'.$sForeignKey, 
-                '=', 
-                $this->sTable.'.'.$this->sPrimaryKey
-            );
-            
-            return $oRepository;
-        }
-        else
-        {
-            return false;
+            if (!$this->hasJoin($oQuery, $oRepository->getTable().' as '.$sName))
+            {
+                $oQuery->leftJoin(
+                    $oRepository->getTable().' as '.$sName, 
+                    $sName.'.'.$sForeignKey, 
+                    '=', 
+                    $this->sTable.'.'.$this->sPrimaryKey
+                );
+            }
         }
     }
     
     /**
      * Formatte the query.
      * 
-     * @param array $aQuery
+     * @param array $mQuery
      * 
      * @return \Illuminate\Database\Eloquent\Collection|static[]
      */
@@ -884,7 +909,7 @@ abstract class QueryBuilderRepository
     /**
      * Sort a collection if an order by on a relation is set.
      * 
-     * @param type $oQuery
+     * @param \Illuminate\Database\Eloquent\Collection|static[] $oQuery
      * 
      * @return void
      */
@@ -1017,11 +1042,16 @@ abstract class QueryBuilderRepository
         $oRepository    = $aRelation['repository'];
         $sForeignKey    = $aRelation['foreign_key'];
         
-        $sPrimaryKey = $this->sPrimaryKey;
+        $sPrimaryKey    = $this->sPrimaryKey;
         
-        $aIdrelation = $oQuery->pluck($sPrimaryKey)->unique()->all();
+        $aIdrelation    = $oQuery->pluck($sPrimaryKey)->unique()->all();
         
-        $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
+        $aEagerLoad     = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
+        
+        if ($aEagerLoad[0] != '*' && !in_array($sForeignKey, $aEagerLoad))
+        {
+            $aEagerLoad[] = $sForeignKey;
+        }
         
         $oQueryRelation = $oRepository
             ->findWhereIn($sForeignKey, $aIdrelation, $aEagerLoad);
@@ -1034,7 +1064,7 @@ abstract class QueryBuilderRepository
                 $sForeignKey, 
                 $oQueryRelation
             )
-            {                    
+            {          
                 $oItem->$sName = $oQueryRelation
                     ->whereIn($sForeignKey, [$oItem->$sPrimaryKey])
                     ->values();
