@@ -1115,6 +1115,51 @@ abstract class QueryBuilderRepository
     }
     
     /**
+     * Parse an object or Collection for the response.
+     * 
+     * @param Collection|StdClass $oItem
+     * @param string $sColumns
+     * 
+     * @return StdClass
+     */
+    private function buildEasterValue($oItem, $sColumns)
+    {
+        $mAttribute = explode('.', $sColumns, 2);
+        $aItem = [];
+        
+        if ($oItem instanceof Collection)
+        {
+            $aTmpAttribute = [];
+            $sAttribute    = is_array($mAttribute) ? $mAttribute[0] : $mAttribute;
+            
+            foreach ($oItem as $oSubItem)
+            {
+                if (isset($mAttribute[1]))
+                {
+                    
+                }
+                else
+                {
+                    $aTmpAttribute[] = $oSubItem->$sAttribute;
+                }
+            }
+            
+            $aItem[$sAttribute] = implode(' / ', $aTmpAttribute);
+        }
+        elseif (strpos($sColumns, '.') !== false)
+        {
+            $aItem[$sAttribute] = $this->buildEasterValue($oItem->$mAttribute[0], $mAttribute[1]);
+        }
+        else
+        {
+            $aItem = $oItem;
+        }
+     
+        return (object) $aItem;
+    }
+
+
+    /**
      * Build a Json to be use with the Jquery Datatable server side.
      * 
      * @param array $aData
@@ -1136,11 +1181,25 @@ abstract class QueryBuilderRepository
         
         $oQuery->transform(function ($oItem, $iKey) use ($aColumns)
         {
-            foreach ($oItem as $sAttribute => $mValue)
+            foreach ($aColumns as $aColumn)
             {
-                if ($mValue instanceof Collection)
+                if (strpos($aColumn, '.') !== false)
                 {
-                    $oItem->$sAttribute = (object) ['name' => implode(' / ', $mValue->pluck('name')->toArray())];
+                    $aAttribute             = explode('.', $aColumn, 2);
+                    $sAttribute             = $aAttribute[0];
+                    $sNewAttribute          = $sAttribute.'_temp';
+                    $oItem->$sNewAttribute  = $this->buildEasterValue($oItem->$sAttribute, $aAttribute[1]);
+                }
+            }
+            
+            foreach ($oItem as $sNameAttribute => $mAttribute)
+            {
+                $sAttributeTemp = $sNameAttribute.'_temp';
+                
+                if (isset($oItem->$sAttributeTemp))
+                {
+                    $oItem->$sNameAttribute = $oItem->$sAttributeTemp;
+                    unset($oItem->$sAttributeTemp);
                 }
             }
             
