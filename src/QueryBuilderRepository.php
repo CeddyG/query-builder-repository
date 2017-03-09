@@ -355,9 +355,14 @@ abstract class QueryBuilderRepository
         
         $this->aLimit = [];
         
-        $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey)
-            ->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction'])
-            ->get([$this->sTable.'.'.$this->sPrimaryKey]);
+        $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey);
+        
+        if (!empty($this->aOrderBy))
+        {
+            $mId = $mId->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction']);
+        }
+        
+        $mId = $mId->get([$this->sTable.'.'.$this->sPrimaryKey]);
 
         if (!$mId instanceof Collection)
         {
@@ -1115,6 +1120,51 @@ abstract class QueryBuilderRepository
     }
     
     /**
+     * Parse an object or Collection for the response.
+     * 
+     * @param Collection|StdClass $oItem
+     * @param string $sColumns
+     * 
+     * @return StdClass
+     */
+    private function buildEasterValue($oItem, $sColumns)
+    {
+        $mAttribute = explode('.', $sColumns, 2);
+        $aItem = [];
+        
+        if ($oItem instanceof Collection)
+        {
+            $aTmpAttribute = [];
+            $sAttribute    = is_array($mAttribute) ? $mAttribute[0] : $mAttribute;
+            
+            foreach ($oItem as $oSubItem)
+            {
+                if (isset($mAttribute[1]))
+                {
+                    
+                }
+                else
+                {
+                    $aTmpAttribute[] = $oSubItem->$sAttribute;
+                }
+            }
+            
+            $aItem[$sAttribute] = implode(' / ', $aTmpAttribute);
+        }
+        elseif (strpos($sColumns, '.') !== false)
+        {
+            $aItem[$sAttribute] = $this->buildEasterValue($oItem->$mAttribute[0], $mAttribute[1]);
+        }
+        else
+        {
+            $aItem = $oItem;
+        }
+     
+        return (object) $aItem;
+    }
+
+
+    /**
      * Build a Json to be use with the Jquery Datatable server side.
      * 
      * @param array $aData
@@ -1136,11 +1186,25 @@ abstract class QueryBuilderRepository
         
         $oQuery->transform(function ($oItem, $iKey) use ($aColumns)
         {
-            foreach ($oItem as $sAttribute => $mValue)
+            foreach ($aColumns as $aColumn)
             {
-                if ($mValue instanceof Collection)
+                if (strpos($aColumn, '.') !== false)
                 {
-                    $oItem->$sAttribute = (object) ['name' => implode(' / ', $mValue->pluck('name')->toArray())];
+                    $aAttribute             = explode('.', $aColumn, 2);
+                    $sAttribute             = $aAttribute[0];
+                    $sNewAttribute          = $sAttribute.'_temp';
+                    $oItem->$sNewAttribute  = $this->buildEasterValue($oItem->$sAttribute, $aAttribute[1]);
+                }
+            }
+            
+            foreach ($oItem as $sNameAttribute => $mAttribute)
+            {
+                $sAttributeTemp = $sNameAttribute.'_temp';
+                
+                if (isset($oItem->$sAttributeTemp))
+                {
+                    $oItem->$sNameAttribute = $oItem->$sAttributeTemp;
+                    unset($oItem->$sAttributeTemp);
                 }
             }
             
@@ -1156,6 +1220,35 @@ abstract class QueryBuilderRepository
             'recordsFiltered'   => ($this->iTotalFiltered == 0) ? $iTotal : $this->iTotalFiltered,
             'data'              => $oQuery
         ], $aData);
+        
+        return new JsonResponse($aOutput);
+    }
+    
+    public function select2(array $aData)
+    {
+        $sPrimaryKey    = $this->getPrimaryKey();
+        $sSearch        = isset($aData['q']) ? $aData['q'] : '';
+        $sField         = $aData['field'];
+        $iPage          = (int) isset($aData['page']) ? $aData['page'] : 1;
+        
+        $oItems = $this->limit(($iPage-1)*30, 30)
+            ->search($sSearch, [$sField], [$sPrimaryKey, $sField]);
+        
+        $iCount = $sSearch != '' 
+            ? $this->iTotalFiltered
+            : $this->count();
+        
+        $oItems->transform(function ($oItem) use ($sPrimaryKey, $sField){
+            $oItem->id = $oItem->$sPrimaryKey;
+            $oItem->text = $oItem->$sField;
+            
+            return $oItem;
+        });
+        
+        $aOutput = [
+            'items'         => $oItems,
+            'total_count'   => $iCount
+        ];
         
         return new JsonResponse($aOutput);
     }
