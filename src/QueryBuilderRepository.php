@@ -355,9 +355,14 @@ abstract class QueryBuilderRepository
         
         $this->aLimit = [];
         
-        $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey)
-            ->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction'])
-            ->get([$this->sTable.'.'.$this->sPrimaryKey]);
+        $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey);
+        
+        if (!empty($this->aOrderBy))
+        {
+            $mId = $mId->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction']);
+        }
+        
+        $mId = $mId->get([$this->sTable.'.'.$this->sPrimaryKey]);
 
         if (!$mId instanceof Collection)
         {
@@ -1215,6 +1220,35 @@ abstract class QueryBuilderRepository
             'recordsFiltered'   => ($this->iTotalFiltered == 0) ? $iTotal : $this->iTotalFiltered,
             'data'              => $oQuery
         ], $aData);
+        
+        return new JsonResponse($aOutput);
+    }
+    
+    public function select2(array $aData)
+    {
+        $sPrimaryKey    = $this->getPrimaryKey();
+        $sSearch        = isset($aData['q']) ? $aData['q'] : '';
+        $sField         = $aData['field'];
+        $iPage          = (int) isset($aData['page']) ? $aData['page'] : 1;
+        
+        $oItems = $this->limit(($iPage-1)*30, 30)
+            ->search($sSearch, [$sField], [$sPrimaryKey, $sField]);
+        
+        $iCount = $sSearch != '' 
+            ? $this->iTotalFiltered
+            : $this->count();
+        
+        $oItems->transform(function ($oItem) use ($sPrimaryKey, $sField){
+            $oItem->id = $oItem->$sPrimaryKey;
+            $oItem->text = $oItem->$sField;
+            
+            return $oItem;
+        });
+        
+        $aOutput = [
+            'items'         => $oItems,
+            'total_count'   => $iCount
+        ];
         
         return new JsonResponse($aOutput);
     }
