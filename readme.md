@@ -39,23 +39,23 @@ class ProductRepository extends QueryBuilderRepository
 
 - [all(array $aColumns)](#all)
 - [find(int $id, array $aColumns)](#find)
-- [findByField(string $sField, mixed $mValue, array $aColumns)](#findByField)
-- [findWhere(array $aWhere, array $aColumns)](#findWhere)
-- [findWhereIn(string $sField, array $aWhere, array $aColumns)](#findWhereIn)
-- [findWhereNotIn(string $sField, array $aWhere, array $aColumns)](#findWhereNotIn)
+- [findByField(string $sField, mixed $mValue, array $aColumns)](#findbyfield)
+- [findWhere(array $aWhere, array $aColumns)](#findwhere)
+- [findWhereIn(string $sField, array $aWhere, array $aColumns)](#findwherein)
+- [findWhereNotIn(string $sField, array $aWhere, array $aColumns)](#findwherenotin)
 - [first(array $aColumns)](#first)
 - [paginate(int $iLimit, array $aColumns, string $sPageName, int $iPage)](#paginate)
 - [create(array $aAttributes)](#create)
 - [update(int $id, array $aAttributes)](#update)
-- [updateOrCreate(array $aAttributes)](#updateOrCreate)
+- [updateOrCreate(array $aAttributes)](#updateorcreate)
 - [delete(array|int $id)](#delete)
 
 ### Additional methods
 
-- [getTable](#getTable)
-- [getPrimaryKey](#getPrimaryKey)
-- [getFillFromView](#getFillFromView)
-- [orderBy](#orderBy)
+- [getTable](#gettable)
+- [getPrimaryKey](#getprimarykey)
+- [getFillFromView](#getfillfromview)
+- [orderBy](#orderby)
 - [limit](#limit)
 - [datatable](#datatable)
 
