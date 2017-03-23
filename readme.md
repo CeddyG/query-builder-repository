@@ -50,13 +50,13 @@ class ProductRepository extends QueryBuilderRepository
 - [updateOrCreate(array $aAttributes)](#updateOrCreate)
 - [delete(array|int $id)](#delete)
 
-#### Additional methods
+### Additional methods
 
 - [getTable](#getTable)
 - [getPrimaryKey](#getPrimaryKey)
 - [getFillFromView](#getFillFromView)
-- [orderBy] (#orderBy)
-- [limit] (#limit)
+- [orderBy](#orderBy)
+- [limit](#limit)
 - [datatable](#datatable)
 
 #### all
@@ -296,6 +296,7 @@ $oProducts = $oRepository
 
 It's to use with Jquery [Datatable](https://datatables.net/), when you want to use [Server Side](https://datatables.net/examples/data_sources/server_side.html). indexAjax() is the method's controller you call in Ajax.
 
+##### PHP :
 ```php
 public function indexAjax(Request $oRequest)
 {
@@ -303,6 +304,86 @@ public function indexAjax(Request $oRequest)
 
     return $this->oRepository->datatable($oRequest->all());
 }
+```
+##### HTML :
+```html
+<table id="tab-admin" class="table no-margin table-bordered table-hover">
+	<thead>
+		<tr>
+			<th>ID</th>
+			<th>Name</th>
+			<th>Price</th>
+			<th>Category</th>
+			<th>Tag</th>
+			<th>Tag Category</th>
+			<th></th>
+			<th></th>
+		</tr>
+	</thead>
+</table>
+```
+##### Javascript :
+```javascript
+$(document).ready(function() {
+    $('#tab-admin').DataTable({
+        serverSide: true,
+        ajax: {
+            url: '../ajax-url'
+        },
+        columns: [
+            { data: "id" },
+            { data: "name" },
+            { data: "price" },
+            { 
+                data: "category_name",
+                name: "category.name"
+            },
+            {
+                data: "tag_name",
+                name: "tag.name",
+                //If you have many tag and want to replace ' / '
+                render: function ( data, type, row, meta ) {
+                    return data.replace(" / ", "</br>"); ;
+                }
+            },
+            {
+                data: "category_tag_name",
+                name: "tag.category_tag.name"
+            },
+            //Add a button to edit
+            { 
+                data: "id",  
+                render: function ( data, type, row, meta ) {
+                    
+                    var render = "{!! Button::warning('Edit')->asLinkTo(route('admin.admin.edit', 'dummyId'))->extraSmall()->block()->render() !!}";
+                    render = render.replace("dummyId", data); 
+                    
+                    return render;
+                }
+            },
+            //Add a button to delete
+            { 
+                data: "id",  
+                render: function ( data, type, row, meta ) {
+                    
+                    var render = '{!! BootForm::open()->action( route("admin.admin.destroy", "dummyId") )->attribute("onsubmit", "return confirm(\'Are you sure to delete ?\')")->delete() !!}'
+                        +'{!! BootForm::submit("Delete", "btn-danger")->addClass("btn-block btn-xs") !!}'
+                        +'{!! BootForm::close() !!}';
+                    render = render.replace("dummyId", data); 
+                    
+                    return render;
+                } 
+            }
+        ],
+        //Don't sort edit and delete column
+        aoColumnDefs: [
+            {
+                bSortable: false,
+                aTargets: [ -1, -2 ]
+            }
+        ]
+    });
+} );
 ```
 
 #### orderBy
@@ -394,7 +475,7 @@ Relations are considered like columns, so to add it :
 ```php
 $oRepository = new ProductRepository();
 
-//It will take the name attribut ad add the relation tag to an attribut "tag"
+//It will take the name attribut and add the relation tag to an attribut "tag"
 $oProduct = $oRepository->find(1, ['name', 'tag']);
 
 echo $oProduct->name;
@@ -410,7 +491,6 @@ foreach ($oProduct->tag as $oTag)
 
 ## ToDo List
 
-- Add relation in Datatable (done, but without eagerloading)
 - Add relation in getFillFromView
 - Add through relation
 - Mix paginate and avaible methods

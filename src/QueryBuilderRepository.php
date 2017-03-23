@@ -915,29 +915,19 @@ abstract class QueryBuilderRepository
      * Sort a collection if an order by on a relation is set.
      * 
      * @param \Illuminate\Database\Eloquent\Collection|static[] $oQuery
+     * @param array $aColumn
      * 
      * @return void
      */
-    private function sortCollectionByRelation(&$oQuery)
-    {
-        if (strpos($this->aOrderBy['field'], '.') !== false)
+    private function sortCollection(&$oQuery, $aColumn)
+    { 
+        if ($this->aOrderBy['direction'] == 'asc')
         {
-            $aOrder     = explode('.', $this->aOrderBy['field']);
-            $sRelation  = $aOrder[0];
-            $sAttribute = $aOrder[1];
-            
-            if ($this->aOrderBy['direction'] == 'asc')
-            {
-                $oQuery = $oQuery->sortBy(function ($oItem, $iKey) use ($sRelation, $sAttribute){
-                    return $oItem->$sRelation->$sAttribute;
-                })->values();
-            }
-            else
-            {
-                $oQuery = $oQuery->sortByDesc(function ($oItem, $iKey) use ($sRelation, $sAttribute){
-                    return $oItem->$sRelation->$sAttribute;
-                })->values();
-            }
+            $oQuery = $oQuery->sortBy($aColumn['data'])->values();
+        }
+        else
+        {
+            $oQuery = $oQuery->sortByDesc($aColumn['data'])->values();
         }
     }
     
@@ -1120,50 +1110,120 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Parse an object or Collection for the response.
+     * Build the columns list for the query.
      * 
-     * @param Collection|StdClass $oItem
-     * @param string $sColumns
+     * @param array $aData
      * 
-     * @return StdClass
+     * @return array
      */
-    private function buildEasterValue($oItem, $sColumns)
+    private function buildColumns($aData)
     {
-        $mAttribute = explode('.', $sColumns, 2);
-        $aItem = [];
+        $aColumns = [];
         
-        if ($oItem instanceof Collection)
+        foreach ($aData['columns'] as $aColumn)
         {
-            $aTmpAttribute = [];
-            $sAttribute    = is_array($mAttribute) ? $mAttribute[0] : $mAttribute;
-            
-            foreach ($oItem as $oSubItem)
-            {
-                if (isset($mAttribute[1]))
-                {
-                    
-                }
-                else
-                {
-                    $aTmpAttribute[] = $oSubItem->$sAttribute;
-                }
-            }
-            
-            $aItem[$sAttribute] = implode(' / ', $aTmpAttribute);
+            $aColumns[] = $aColumn['name'] != '' 
+                ? $aColumn['name'] 
+                : $aColumn['data'];
         }
-        elseif (strpos($sColumns, '.') !== false)
+        
+        return array_unique($aColumns);
+    }
+    
+    /**
+     * Build the order column for the query.
+     * 
+     * @param array $aColumns
+     * @param string $sOrder
+     * 
+     * @return string
+     */
+    private function buildOrderColumn($aColumns, $sOrder)
+    {
+        $sColumn = $aColumns[$sOrder];
+        
+        if (strpos($sColumn, '.') !== false)
         {
-            $aItem[$sAttribute] = $this->buildEasterValue($oItem->$mAttribute[0], $mAttribute[1]);
+            $aColumn = explode('.', $sColumn);
+            $iCount = count($aColumn);
+            
+            return $aColumn[$iCount-2].'.'.$aColumn[$iCount-1];
         }
         else
         {
-            $aItem = $oItem;
+            return $sColumn;
         }
-     
-        return (object) $aItem;
     }
 
+    /**
+     * Add custom values to the returned query with its attributes.
+     * 
+     * @param Collection $oQuery
+     * @param array $aData
+     * 
+     * @return void
+     */
+    private function addCustomValues(&$oQuery, $aData)
+    {
+        $oQuery->transform(function ($oItem, $iKey) use ($aData)
+        {
+            foreach ($aData['columns'] as $aColumn)
+            {
+                if ($aColumn['name'] != '')
+                {
+                    $sAttributeName = $aColumn['name'];
+                    
+                    $aAttribute = $this->buildEasterValue($oItem, $sAttributeName);
+                    $sAttribute = implode(' / ', $aAttribute);
+                    
+                    $sNewAttributeName         = $aColumn['data'];
+                    $oItem->$sNewAttributeName = $sAttribute;
+                }
+            }
+            
+            return $oItem;
+        });
+    }
 
+    /**
+     * Parse an object or Collection  for the response.
+     * 
+     * @param Collection|StdClass $oItem
+     * @param string $sColumnsName
+     * @param array $aValue
+     * 
+     * @return StdClass
+     */
+    private function buildEasterValue($oItem, $sColumnsName, $aValue = [])
+    {
+        if (strpos($sColumnsName, '.') !== false)
+        {
+            $aAttribute = explode('.', $sColumnsName, 2);
+            $sAttribute = $aAttribute[0];
+            
+            if ($oItem->$sAttribute instanceof Collection)
+            {
+                foreach ($oItem->$sAttribute as $oSubItem)
+                {
+                    $aValue = $this->buildEasterValue($oSubItem, $aAttribute[1], $aValue);
+                }
+            }
+            else
+            {
+                $aValue = $this->buildEasterValue($oSubItem, $aAttribute[1], $aValue);
+            }
+        }
+        else
+        {
+            if (!$oItem->$sColumnsName instanceof Collection)
+            {
+                $aValue[] = $oItem->$sColumnsName;
+            }
+        }
+        
+        return $aValue;
+    }
+    
     /**
      * Build a Json to be use with the Jquery Datatable server side.
      * 
@@ -1173,45 +1233,17 @@ abstract class QueryBuilderRepository
      */
     public function datatable(array $aData)
     {
-        $aColumns = array_unique(
-            array_column($aData['columns'], 'data')
-        );
+        $aColumns   = $this->buildColumns($aData);
         
-        $aOrder = $aData['order'][0];
-        $sOrder = $aColumns[$aOrder['column']];
+        $aOrder     = $aData['order'][0];
+        $sOrder     = $this->buildOrderColumn($aColumns, $aOrder['column']);
         
         $oQuery = $this->orderBy($sOrder, $aOrder['dir'])
             ->limit($aData['start'], $aData['length'])
             ->search($aData['search']['value'], $aColumns, $aColumns);
         
-        $oQuery->transform(function ($oItem, $iKey) use ($aColumns)
-        {
-            foreach ($aColumns as $aColumn)
-            {
-                if (strpos($aColumn, '.') !== false)
-                {
-                    $aAttribute             = explode('.', $aColumn, 2);
-                    $sAttribute             = $aAttribute[0];
-                    $sNewAttribute          = $sAttribute.'_temp';
-                    $oItem->$sNewAttribute  = $this->buildEasterValue($oItem->$sAttribute, $aAttribute[1]);
-                }
-            }
-            
-            foreach ($oItem as $sNameAttribute => $mAttribute)
-            {
-                $sAttributeTemp = $sNameAttribute.'_temp';
-                
-                if (isset($oItem->$sAttributeTemp))
-                {
-                    $oItem->$sNameAttribute = $oItem->$sAttributeTemp;
-                    unset($oItem->$sAttributeTemp);
-                }
-            }
-            
-            return $oItem;
-        });
-        
-        $this->sortCollectionByRelation($oQuery);
+        $this->addCustomValues($oQuery, $aData);
+        $this->sortCollection($oQuery, $aData['columns'][$aOrder['column']]);
         
         $iTotal = $this->count();
         
@@ -1232,6 +1264,7 @@ abstract class QueryBuilderRepository
         $iPage          = (int) isset($aData['page']) ? $aData['page'] : 1;
         
         $oItems = $this->limit(($iPage-1)*30, 30)
+            ->orderBy($sField)
             ->search($sSearch, [$sField], [$sPrimaryKey, $sField]);
         
         $iCount = $sSearch != '' 
