@@ -502,6 +502,8 @@ protected $aRelations = ['tag'];
 
 ## ToDo List
 
+- Add specific getter and setter
+- Add date array and set default format
 - Add through relation
 - Mix paginate and avaible methods
 - Add a command to generate repository
