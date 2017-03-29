@@ -78,6 +78,13 @@ abstract class QueryBuilderRepository
     protected $aFillForQuery = [];
     
     /**
+     * List of relations we allow in getFillFromView.
+     * 
+     * @var array 
+     */
+    protected $aRelations = [];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array
@@ -1098,11 +1105,19 @@ abstract class QueryBuilderRepository
         $sContents = File::get(base_path().'/resources/views/'. $sView .'.blade.php');
         
         $this->aFillForQuery = [];
-        foreach ($this->aFillable as $fillable)
+        foreach ($this->aFillable as $sFillable)
         {
-            if (stripos($sContents, $fillable) !== false)
+            if (stripos($sContents, $sFillable) !== false)
             {
-                $this->aFillForQuery[] = $fillable;
+                $this->aFillForQuery[] = $sFillable;
+            }
+        }
+        
+        foreach ($this->aRelations as $sRelation)
+        {
+            if (stripos($sContents, $sRelation) !== false)
+            {
+                $this->aFillForQuery[] = $sRelation;
             }
         }
         

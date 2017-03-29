@@ -489,9 +489,19 @@ foreach ($oProduct->tag as $oTag)
 }
 ```
 
+To use it with [getFillFromView](#getfillfromview) you have to define what relations you allow :
+
+```php
+/**
+* List of relations we allow in getFillFromView.
+* 
+* @var array 
+*/
+protected $aRelations = ['tag'];
+```
+
 ## ToDo List
 
-- Add relation in getFillFromView
 - Add through relation
 - Mix paginate and avaible methods
 - Add a command to generate repository
