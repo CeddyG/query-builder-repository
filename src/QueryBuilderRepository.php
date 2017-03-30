@@ -563,55 +563,57 @@ abstract class QueryBuilderRepository
         {
             if (method_exists($this, $sKey))
             {
-                $this->sync($id, $sKey, $aAttributes);
+                $this->sync($id, $sKey, $aAttributes[$sKey]);
             }
         }
     }
     
-    private function sync($id, $sRelation, $aAttributes)
+    private function sync($id, $sRelation, $aIdToSync)
     {
-        $this->flushRelation();
-        //revoir $aAttributes[$sRelation] car $aAttributes doit déjà être un tableau avec les ID
-        
-        if (method_exists($this, $sRelation) && is_array($aAttributes[$sRelation]))
+        if (method_exists($this, $sRelation))
         {
+            $this->flushRelation();
             $this->$sRelation();
-            
+
             $aRelation = $this->aBelongsToMany[0];
-            $aIdToSync = $aAttributes[$sRelation];
             
-            DB::table($aRelation['table_pivot'])
-                ->whereNotIn($aRelation['other_foreign_key'], $aIdToSync)
-                ->where($aRelation['foreign_key'], $id)
-                ->delete();
-            
-            $aIdAlready = collect(DB::table($aRelation['table_pivot'])
-                ->where($aRelation['foreign_key'], $id)
-                ->get([$aRelation['other_foreign_key']]));
-            
-            $aDiff = array_diff(
-                $aIdToSync,
-                $aIdAlready->pluck($aRelation['other_foreign_key'])->toArray()
-            );
-            
-            $aFinal = [];
-            
-            foreach ($aDiff as $sId)
+            if (is_array($aRelation) && !empty($aIdToSync))
             {
-                $aFinal[] = [
-                    $aRelation['foreign_key']       => (int) $id,
-                    $aRelation['other_foreign_key'] => (int) $sId
-                ];
+                DB::table($aRelation['table_pivot'])
+                    ->whereNotIn($aRelation['other_foreign_key'], $aIdToSync)
+                    ->where($aRelation['foreign_key'], $id)
+                    ->delete();
+
+                $aIdAlready = collect(DB::table($aRelation['table_pivot'])
+                    ->where($aRelation['foreign_key'], $id)
+                    ->get([$aRelation['other_foreign_key']]));
+
+                $aDiff = array_diff(
+                    $aIdToSync,
+                    $aIdAlready->pluck($aRelation['other_foreign_key'])->toArray()
+                );
+
+                $aFinal = [];
+
+                foreach ($aDiff as $sId)
+                {
+                    $aFinal[] = [
+                        $aRelation['foreign_key']       => (int) $id,
+                        $aRelation['other_foreign_key'] => (int) $sId
+                    ];
+                }
+
+                DB::table($aRelation['table_pivot'])->insert($aFinal);
             }
-            
-            DB::table($aRelation['table_pivot'])->insert($aFinal);
+            else
+            {
+                DB::table($aRelation['table_pivot'])
+                    ->where($aRelation['foreign_key'], $id)
+                    ->delete();
+            }
+
+            $this->flushRelation();
         }
-        elseif (!is_array($aAttributes[$sRelation]))
-        {
-            
-        }
-        
-        $this->flushRelation();
     }
     
     /**
