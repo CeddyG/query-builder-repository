@@ -493,8 +493,12 @@ abstract class QueryBuilderRepository
         }
         else
         {
-            $aAttributes = $this->fillableFromArray($aAttributes);
-            return DB::table($this->sTable)->insertGetId($aAttributes);
+            $aAttributes    = $this->fillableFromArray($aAttributes);
+            $id             = DB::table($this->sTable)->insertGetId($aAttributes);
+            
+            $this->syncRelations($id, $aAttributes);
+            
+            return $id;
         }
     }
     
