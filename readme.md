@@ -504,6 +504,7 @@ protected $aRelations = ['tag'];
 
 - Add specific getter and setter
 - Add date array and set default format
+- Select only the fillable's relation in the getFillFromView method (if we have $oItem->tag->tag_name in the view, the system have to select tag_name only)
 - Add through relation
 - Mix paginate and avaible methods
 - Add a command to generate repository
