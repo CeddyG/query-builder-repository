@@ -414,6 +414,41 @@ $oProducts = $oRepository->limit(5, 5)->all(); //Will take the 5 records after t
 $oProduct = $oRepository->limit(0, 10)->find(1, ['name']); //Useless
 ```
 
+## Date
+
+You can specify the default date format from the database and the default date format to store in the database.
+
+```php
+namespace App\Repositories;
+
+use CeddyG\QueryBuilderRepository\QueryBuilderRepository;
+
+class ProductRepository extends QueryBuilderRepository
+{
+
+    protected $aFillable = ['name', 'category', 'price', 'date_limit'];
+    
+    protected $aDates = ['date_limit'];
+    
+    //By default $sDateFormatToGet = 'Y-m-d'
+    protected $sDateFormatToGet = 'd/m/Y';
+
+    //By default $sDateFormatToStore = 'Y-m-d'
+    protected $sDateFormatToStore = 'Y-m-d';
+}
+```
+
+Then if you have 2017-05-24 in your database you will have :
+
+```php
+$oRepository = new ProductRepository();
+
+$oProduct = $oRepository->first(['date_limit']);
+echo $oProduct->date_limit; // 24/05/2017
+
+$oRepository->update(1, ['date_limit' => '25/05/2017']) // Will store 2017-05-25 in the database
+```
+
 ## Relationship
 
 To configure relationship, it's like Eloquent, you have to define a belongsTo, belongsToMany or hasMany with other repositories.
@@ -503,7 +538,6 @@ protected $aRelations = ['tag'];
 ## ToDo List
 
 - Add specific getter and setter
-- Add date array and set default format
 - Select only the fillable's relation in the getFillFromView method (if we have $oItem->tag->tag_name in the view, the system have to select tag_name only)
 - Add through relation
 - Mix paginate and avaible methods

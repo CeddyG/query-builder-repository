@@ -4,6 +4,7 @@ namespace Ceddyg\QueryBuilderRepository;
 
 use DB;
 use File;
+use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
@@ -90,6 +91,27 @@ abstract class QueryBuilderRepository
      * @var array
      */
     protected $aFillable = [];
+    
+    /**
+     * List of date field.
+     * 
+     * @var array 
+     */
+    protected $aDates = [];
+
+    /**
+     * Default format for a date field.
+     *
+     * @var string
+     */
+    protected $sDateFormatToGet = 'Y-m-d';
+
+    /**
+     * Default format for a date field.
+     *
+     * @var string
+     */
+    protected $sDateFormatToStore = 'Y-m-d';
     
     /**
      * The relationships that should be eager loaded.
@@ -939,10 +961,38 @@ abstract class QueryBuilderRepository
         {
             $mQuery = collect($mQuery);
         }
-
+        
+        $this->getDateAttribut($mQuery);
+        
         $this->setRelations($mQuery);
         
         return $mQuery;
+    }
+    
+    /**
+     * Format all the date field.
+     * 
+     * @param \Illuminate\Database\Eloquent\Collection $oQuery
+     * 
+     * @return void
+     */
+    private function getDateAttribut(&$oQuery)
+    {
+        $oQuery->transform(
+            function ($oItem, $i)
+            {
+                foreach ($oItem as $sAttribute => $mValue)
+                {
+                    if (in_array($sAttribute, $this->aDates))
+                    {
+                        $oItem->$sAttribute = Carbon::parse($mValue)
+                            ->format($this->sDateFormatToGet);
+                    }
+                }
+            
+                return $oItem;
+            }
+        );
     }
     
     /**
@@ -1154,10 +1204,36 @@ abstract class QueryBuilderRepository
     {
         if (count($this->aFillable) > 0) 
         {
-            return array_intersect_key($aAttributes, array_flip($this->aFillable));
+            $aAttributes = array_intersect_key($aAttributes, array_flip($this->aFillable));
+        
+            $this->formatFieldToStore($aAttributes);
+        
+            return $aAttributes;
         }
-
+        
+        $this->formatFieldToStore($aAttributes);
+        
         return $aAttributes;
+    }
+    
+    /**
+     * If we want transform some attributes before storing.
+     * 
+     * @param array $aAttributes
+     * 
+     * return void
+     */
+    private function formatFieldToStore(&$aAttributes)
+    {
+        foreach ($aAttributes as $sAttribute => $mValue)
+        {
+            if (in_array($sAttribute, $this->aDates))
+            {
+                $sTmpDate = str_replace('/', '-', $mValue);
+                
+                $aAttributes[$sAttribute] = date($this->sDateFormatToStore, strtotime($sTmpDate));
+            }
+        }
     }
     
     /**
