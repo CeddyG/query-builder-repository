@@ -114,6 +114,13 @@ abstract class QueryBuilderRepository
     protected $sDateFormatToStore = 'Y-m-d';
     
     /**
+     * Contain custom attribute we want in the response.
+     * 
+     * @var array
+     */
+    protected $aCustomAttribute = [];
+
+    /**
      * The relationships that should be eager loaded.
      *
      * @var array
@@ -763,11 +770,22 @@ abstract class QueryBuilderRepository
                 if (isset($aColumn[1]))
                 {
                     $this->aEagerLoad[$sColumn][] = $aColumn[1];
+                    unset($aColumn);
                 }
                 
                 $this->$sColumn();
                 
                 unset($aColumns[$iKey]);
+            }
+            
+            if (method_exists($this, $this->getCustomAttributeFunction($sColumn)))
+            {
+                $this->aCustomAttribute[] = $sColumn;
+                
+                if (!in_array($sColumn, $this->aFillable))
+                {
+                    unset($aColumns[$iKey]);
+                }
             }
         }
         
@@ -962,7 +980,7 @@ abstract class QueryBuilderRepository
             $mQuery = collect($mQuery);
         }
         
-        $this->getDateAttribut($mQuery);
+        $this->getCustomAttribute($mQuery);
         
         $this->setRelations($mQuery);
         
@@ -970,13 +988,13 @@ abstract class QueryBuilderRepository
     }
     
     /**
-     * Format all the date field.
+     * Format all the date field and custom attribute.
      * 
      * @param \Illuminate\Database\Eloquent\Collection $oQuery
      * 
      * @return void
      */
-    private function getDateAttribut(&$oQuery)
+    private function getCustomAttribute(&$oQuery)
     {
         $oQuery->transform(
             function ($oItem, $i)
@@ -989,10 +1007,21 @@ abstract class QueryBuilderRepository
                             ->format($this->sDateFormatToGet);
                     }
                 }
+                
+                foreach ($this->aCustomAttribute as $sCustomAttribute)
+                {
+                    $sFunction = $this->getCustomAttributeFunction($sCustomAttribute);
+                    $oItem->$sCustomAttribute = $this->$sFunction($oItem);
+                }
             
                 return $oItem;
             }
         );
+    }
+    
+    private function getCustomAttributeFunction($sAttribute)
+    {
+        return 'get'.ucfirst(camel_case($sAttribute)).'Attribute';
     }
     
     /**

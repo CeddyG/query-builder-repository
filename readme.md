@@ -449,6 +449,52 @@ echo $oProduct->date_limit; // 24/05/2017
 $oRepository->update(1, ['date_limit' => '25/05/2017']) // Will store 2017-05-25 in the database
 ```
 
+##Custom attribute
+
+You can get specific attribute.
+
+```php
+namespace App\Repositories;
+
+use CeddyG\QueryBuilderRepository\QueryBuilderRepository;
+
+class ProductRepository extends QueryBuilderRepository
+{
+
+    protected $aFillable = ['name', 'category', 'price', 'date_limit'];
+    
+    /**
+     * Will change a fill that came from the database
+     *
+     * @param Collection|StdClass $oItem
+     */
+    public function getPriceAttribute($oItem)
+    {
+        return oItem->price * 1.2;
+    }
+    
+    /**
+     * Will create a new attribute that not in database
+     *
+     * @param Collection|StdClass $oItem
+     */
+    public function getReferenceAttribute($oItem)
+    {
+        return oItem->name.' '.oItem->category;
+    }
+}
+```
+
+And you can use it simply
+
+```php
+$oRepository = new ProductRepository();
+
+$oProduct = $oRepository->first(['name', 'category', 'price', 'reference']);
+
+
+```
+
 ## Relationship
 
 To configure relationship, it's like Eloquent, you have to define a belongsTo, belongsToMany or hasMany with other repositories.
@@ -537,7 +583,7 @@ protected $aRelations = ['tag'];
 
 ## ToDo List
 
-- Add specific getter and setter
+- Add specific setter
 - Select only the fillable's relation in the getFillFromView method (if we have $oItem->tag->tag_name in the view, the system have to select tag_name only)
 - Add through relation
 - Mix paginate and avaible methods
