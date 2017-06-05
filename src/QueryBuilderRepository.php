@@ -267,17 +267,7 @@ abstract class QueryBuilderRepository
         
         $oQuery = $this->setQuery();
         
-        foreach($aWhere as $iKey => $mCondition)
-        {
-            if(is_array($mCondition))
-            {
-                $oQuery = $oQuery->where($mCondition[0], $mCondition[1], $mCondition[2]);
-            }
-            else
-            {
-                $oQuery = $oQuery->where($iKey, $mCondition);
-            }
-        }
+        $this->addWhereClause($aWhere, $oQuery);
         
         $aQuery = $oQuery->get($aColumns);
         
@@ -290,16 +280,20 @@ abstract class QueryBuilderRepository
      * @param string $sField
      * @param array $aWhere
      * @param array $aColumns
+     * @param array $aAdditionnalWhere
      * 
      * @return \Illuminate\Database\Eloquent\Collection|static[]
      */
-    public function findWhereIn($sField, array $aWhere, array $aColumns = ['*'])
+    public function findWhereIn($sField, array $aWhere, array $aColumns = ['*'], array $aAdditionnalWhere = [])
     {
         $this->setColumns($aColumns);
         
-        $aQuery = $this->setQuery()
-            ->whereIn($sField, $aWhere)
-            ->get($aColumns);
+        $oQuery = $this->setQuery()
+            ->whereIn($sField, $aWhere);
+        
+        $this->addWhereClause($aAdditionnalWhere, $oQuery);
+        
+        $aQuery = $oQuery->get($aColumns);
         
         return $this->setResponse($aQuery);
     }
@@ -310,18 +304,45 @@ abstract class QueryBuilderRepository
      * @param string $sField
      * @param array $aWhere
      * @param array $aColumns
+     * @param array $aAdditionnalWhere
      * 
      * @return \Illuminate\Database\Eloquent\Collection|static[]
      */
-    public function findWhereNotIn($sField, array $aWhere, array $aColumns = ['*'])
+    public function findWhereNotIn($sField, array $aWhere, array $aColumns = ['*'], array $aAdditionnalWhere = [])
     {
         $this->setColumns($aColumns);
         
-        $aQuery = $this->setQuery()
-            ->whereNotIn($sField, $aWhere)
-            ->get($aColumns);
+        $oQuery = $this->setQuery()
+            ->whereNotIn($sField, $aWhere);
+        
+        $this->addWhereClause($aAdditionnalWhere, $oQuery);
+        
+        $aQuery = $oQuery->get($aColumns);
         
         return $this->setResponse($aQuery);
+    }
+    
+    /**
+     * Add where clause to the query.
+     * 
+     * @param array $aWhere
+     * @param Object $oQuery
+     * 
+     * @return void
+     */
+    private function addWhereClause($aWhere, &$oQuery) 
+    {
+        foreach($aWhere as $iKey => $mCondition)
+        {
+            if(is_array($mCondition))
+            {
+                $oQuery->where($mCondition[0], $mCondition[1], $mCondition[2]);
+            }
+            else
+            {
+                $oQuery->where($iKey, $mCondition);
+            }
+        }
     }
     
     /**
@@ -654,10 +675,11 @@ abstract class QueryBuilderRepository
      * 
      * @param type $sRepository
      * @param type $sForeignKey
+     * @param array $aWhere
      * 
      * @return void
      */
-    protected function belongsTo($sRepository, $sForeignKey = null)
+    protected function belongsTo($sRepository, $sForeignKey = null, array $aWhere = [])
     {
         $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
@@ -669,7 +691,8 @@ abstract class QueryBuilderRepository
             $this->aBelongsTo[] = [
                 'name'          => $sName,
                 'repository'    => $oRepository,
-                'foreign_key'   => $sForeignKey
+                'foreign_key'   => $sForeignKey,
+                'where'         => $aWhere
             ];
         }
     }
@@ -681,6 +704,7 @@ abstract class QueryBuilderRepository
      * @param string $sPivotTable
      * @param string $sForeignKey
      * @param string $sOtherForeignKey
+     * @param array $aWhere
      * 
      * @return void
      */
@@ -688,7 +712,8 @@ abstract class QueryBuilderRepository
         $sRepository, 
         $sPivotTable, 
         $sForeignKey        = null, 
-        $sOtherForeignKey   = null
+        $sOtherForeignKey   = null,
+        array $aWhere = []
     )
     {
         $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
@@ -704,7 +729,8 @@ abstract class QueryBuilderRepository
                 'repository'        => $oRepository,
                 'table_pivot'       => $sPivotTable,
                 'foreign_key'       => $sForeignKey,
-                'other_foreign_key' => $sOtherForeignKey
+                'other_foreign_key' => $sOtherForeignKey,
+                'where'             => $aWhere
             ];
         }
     }
@@ -714,10 +740,11 @@ abstract class QueryBuilderRepository
      * 
      * @param string $sRepository
      * @param string $sForeignKey
+     * @param array $aWhere
      * 
      * @return void
      */
-    protected function hasMany($sRepository, $sForeignKey = null)
+    protected function hasMany($sRepository, $sForeignKey = null, array $aWhere = [])
     {
         $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
@@ -729,7 +756,8 @@ abstract class QueryBuilderRepository
             $this->aHasMany[] = [
                 'name'          => $sName,
                 'repository'    => $oRepository,
-                'foreign_key'   => $sForeignKey
+                'foreign_key'   => $sForeignKey,
+                'where'         =>$aWhere
             ];
         }
     }
@@ -980,9 +1008,8 @@ abstract class QueryBuilderRepository
             $mQuery = collect($mQuery);
         }
         
-        $this->getCustomAttribute($mQuery);
-        
         $this->setRelations($mQuery);
+        $this->getCustomAttribute($mQuery);
         
         return $mQuery;
     }
@@ -1097,13 +1124,14 @@ abstract class QueryBuilderRepository
         $sName          = $aRelation['name'];
         $sForeignKey    = $aRelation['foreign_key'];
         $oRepository    = $aRelation['repository'];
+        $aWhere         = $aRelation['where'];
         
-        $sPrimaryKey = $oRepository->getPrimaryKey();
-        $aIdrelation = $oQuery->pluck($sForeignKey)->unique()->all();
+        $sPrimaryKey    = $oRepository->getPrimaryKey();
+        $aIdrelation    = $oQuery->pluck($sForeignKey)->unique()->all();
         
         $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
-        $oQueryRelation = $oRepository->findWhereIn($sPrimaryKey, $aIdrelation, $aEagerLoad);
+        $oQueryRelation = $oRepository->findWhereIn($sPrimaryKey, $aIdrelation, $aEagerLoad, $aWhere);
                 
         $oQuery->transform(
             function ($oItem, $i) use ($sName, $sPrimaryKey, $sForeignKey, $oQueryRelation)
@@ -1133,6 +1161,7 @@ abstract class QueryBuilderRepository
         $sPrimaryKey        = $this->sPrimaryKey;
         $sForeignKey        = $aRelation['foreign_key'];
         $sOtherForeignKey   = $aRelation['other_foreign_key'];
+        $aWhere             = $aRelation['where'];
         
         $aIdrelation = $oQuery->pluck($sPrimaryKey)->unique()->all();
         
@@ -1147,7 +1176,7 @@ abstract class QueryBuilderRepository
         $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
         $oQueryRelation = $oRepository
-            ->findWhereIn($oRepository->getPrimaryKey(), $aIdrelation, $aEagerLoad);
+            ->findWhereIn($oRepository->getPrimaryKey(), $aIdrelation, $aEagerLoad, $aWhere);
          
         $oQuery->transform(
             function ($oItem, $i) 
@@ -1189,6 +1218,7 @@ abstract class QueryBuilderRepository
         $sName          = $aRelation['name'];
         $oRepository    = $aRelation['repository'];
         $sForeignKey    = $aRelation['foreign_key'];
+        $aWhere         = $aRelation['where'];
         
         $sPrimaryKey    = $this->sPrimaryKey;
         
@@ -1202,7 +1232,7 @@ abstract class QueryBuilderRepository
         }
         
         $oQueryRelation = $oRepository
-            ->findWhereIn($sForeignKey, $aIdrelation, $aEagerLoad);
+            ->findWhereIn($sForeignKey, $aIdrelation, $aEagerLoad, $aWhere);
         
         $oQuery->transform(
             function ($oItem, $i) 
