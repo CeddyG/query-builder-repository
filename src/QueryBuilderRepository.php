@@ -133,6 +133,13 @@ abstract class QueryBuilderRepository
      * @var int
      */
     protected $iTotalFiltered = 0;
+    
+    /**
+     * Array of the Ids return by the query.
+     * 
+     * @var array
+     */
+    protected $aIdList = [];
 
     public function __construct()
     {        
@@ -1008,8 +1015,12 @@ abstract class QueryBuilderRepository
             $mQuery = collect($mQuery);
         }
         
+        $this->aIdList = $mQuery->pluck($this->sPrimaryKey)->unique()->all();
+        
         $this->setRelations($mQuery);
         $this->getCustomAttribute($mQuery);
+        
+        $this->aIdList = [];
         
         return $mQuery;
     }
@@ -1163,11 +1174,9 @@ abstract class QueryBuilderRepository
         $sOtherForeignKey   = $aRelation['other_foreign_key'];
         $aWhere             = $aRelation['where'];
         
-        $aIdrelation = $oQuery->pluck($sPrimaryKey)->unique()->all();
-        
         $oTablePivot = collect(
             DB::table($sTablePivot)
-            ->whereIn($sForeignKey, $aIdrelation)
+            ->whereIn($sForeignKey, $this->aIdList)
             ->get()
         );
         
@@ -1177,7 +1186,7 @@ abstract class QueryBuilderRepository
         
         $oQueryRelation = $oRepository
             ->findWhereIn($oRepository->getPrimaryKey(), $aIdrelation, $aEagerLoad, $aWhere);
-         
+        
         $oQuery->transform(
             function ($oItem, $i) 
             use (
@@ -1222,8 +1231,6 @@ abstract class QueryBuilderRepository
         
         $sPrimaryKey    = $this->sPrimaryKey;
         
-        $aIdrelation    = $oQuery->pluck($sPrimaryKey)->unique()->all();
-        
         $aEagerLoad     = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
         if ($aEagerLoad[0] != '*' && !in_array($sForeignKey, $aEagerLoad))
@@ -1232,7 +1239,7 @@ abstract class QueryBuilderRepository
         }
         
         $oQueryRelation = $oRepository
-            ->findWhereIn($sForeignKey, $aIdrelation, $aEagerLoad, $aWhere);
+            ->findWhereIn($sForeignKey, $this->aIdList, $aEagerLoad, $aWhere);
         
         $oQuery->transform(
             function ($oItem, $i) 
