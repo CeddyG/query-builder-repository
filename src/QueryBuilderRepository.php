@@ -1172,42 +1172,57 @@ abstract class QueryBuilderRepository
         $sPrimaryKey        = $this->sPrimaryKey;
         $sForeignKey        = $aRelation['foreign_key'];
         $sOtherForeignKey   = $aRelation['other_foreign_key'];
+        $sOtherPrimaryKey   = $oRepository->getPrimaryKey();
         $aWhere             = $aRelation['where'];
         
-        $oTablePivot = collect(
+        $oTablePivots = collect(
             DB::table($sTablePivot)
             ->whereIn($sForeignKey, $this->aIdList)
             ->get()
         );
         
-        $aIdrelation = $oTablePivot->pluck($sOtherForeignKey)->unique()->all();
+        $aIdrelation = $oTablePivots->pluck($sOtherForeignKey)->unique()->all();
         
         $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
-        $oQueryRelation = $oRepository
-            ->findWhereIn($oRepository->getPrimaryKey(), $aIdrelation, $aEagerLoad, $aWhere);
+        $aQueryRelation = $oRepository
+            ->findWhereIn($sOtherPrimaryKey, $aIdrelation, $aEagerLoad, $aWhere)
+            ->all();
+        
+        $aFinalRelation = [];
+        foreach ($oTablePivots as $oTablePivot)
+        {
+            if (!isset($aFinalRelation[$oTablePivot->$sForeignKey]))
+            {
+                $aFinalRelation[$oTablePivot->$sForeignKey] = [];
+            }
+            
+            $aFinalRelation[$oTablePivot->$sForeignKey] += array_filter(
+                $aQueryRelation, 
+                function ($oSubItem) use ($oTablePivot, $sOtherPrimaryKey, $sOtherForeignKey)
+                {
+                    return $oSubItem->$sOtherPrimaryKey == $oTablePivot->$sOtherForeignKey;
+                }
+            );
+        }
+        unset($oTablePivots);
         
         $oQuery->transform(
             function ($oItem, $i) 
             use (
-                $sName, 
-                $oRepository, 
-                $oTablePivot, 
-                $sForeignKey, 
-                $sPrimaryKey, 
-                $sOtherForeignKey, 
-                $oQueryRelation
+                $sName,  
+                $sPrimaryKey,
+                $aFinalRelation
             )
-            {
-                $aIds = $oTablePivot
-                    ->where($sForeignKey, $oItem->$sPrimaryKey)
-                    ->pluck($sOtherForeignKey)
-                    ->unique()
-                    ->all();
-                    
-                $oItem->$sName = $oQueryRelation
-                    ->whereIn($oRepository->getPrimaryKey(), $aIds)
-                    ->values();
+            {          
+                if (isset($aFinalRelation[$oItem->$sPrimaryKey]))
+                {
+                    $oItem->$sName = $aFinalRelation[$oItem->$sPrimaryKey];
+                }
+                else
+                {
+                    $oItem->$sName = [];
+                }
                 
                 return $oItem;
             }
@@ -1241,18 +1256,29 @@ abstract class QueryBuilderRepository
         $oQueryRelation = $oRepository
             ->findWhereIn($sForeignKey, $this->aIdList, $aEagerLoad, $aWhere);
         
+        $aFinalRelation = [];
+        foreach ($oQueryRelation as $oRelation)
+        {
+            $aFinalRelation[$oRelation->$sForeignKey][] = $oRelation;
+        }
+        unset($oQueryRelation);
+        
         $oQuery->transform(
             function ($oItem, $i) 
             use (
                 $sName,  
                 $sPrimaryKey,
-                $sForeignKey, 
-                $oQueryRelation
+                $aFinalRelation
             )
             {          
-                $oItem->$sName = $oQueryRelation
-                    ->whereIn($sForeignKey, [$oItem->$sPrimaryKey])
-                    ->values();
+                if (isset($aFinalRelation[$oItem->$sPrimaryKey]))
+                {
+                    $oItem->$sName = $aFinalRelation[$oItem->$sPrimaryKey];
+                }
+                else
+                {
+                    $oItem->$sName = [];
+                }
                 
                 return $oItem;
             }
@@ -1425,7 +1451,7 @@ abstract class QueryBuilderRepository
             $aAttribute = explode('.', $sColumnsName, 2);
             $sAttribute = $aAttribute[0];
             
-            if ($oItem->$sAttribute instanceof Collection)
+            if ($oItem->$sAttribute instanceof Collection || is_array($oItem->$sAttribute))
             {
                 foreach ($oItem->$sAttribute as $oSubItem)
                 {
