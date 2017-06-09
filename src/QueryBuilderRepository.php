@@ -140,6 +140,13 @@ abstract class QueryBuilderRepository
      * @var array
      */
     protected $aIdList = [];
+    
+    /**
+     * If we want simple array for the relations or collection.
+     * 
+     * @var bool
+     */
+    protected $bReturnCollection = true;
 
     public function __construct()
     {        
@@ -166,6 +173,11 @@ abstract class QueryBuilderRepository
     public function getPrimaryKey()
     {
         return $this->sPrimaryKey;
+    }
+    
+    public function setReturnCollection(bool $bReturnCollection)
+    {
+        $this->bReturnCollection = $bReturnCollection;
     }
     
     /**
@@ -1217,7 +1229,9 @@ abstract class QueryBuilderRepository
             {          
                 if (isset($aFinalRelation[$oItem->$sPrimaryKey]))
                 {
-                    $oItem->$sName = $aFinalRelation[$oItem->$sPrimaryKey];
+                    $oItem->$sName = $this->bReturnCollection ? 
+                        collect($aFinalRelation[$oItem->$sPrimaryKey])
+                        : $aFinalRelation[$oItem->$sPrimaryKey];
                 }
                 else
                 {
@@ -1273,7 +1287,9 @@ abstract class QueryBuilderRepository
             {          
                 if (isset($aFinalRelation[$oItem->$sPrimaryKey]))
                 {
-                    $oItem->$sName = $aFinalRelation[$oItem->$sPrimaryKey];
+                    $oItem->$sName = $this->bReturnCollection ? 
+                        collect($aFinalRelation[$oItem->$sPrimaryKey])
+                        : $aFinalRelation[$oItem->$sPrimaryKey];
                 }
                 else
                 {

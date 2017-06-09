@@ -449,7 +449,7 @@ echo $oProduct->date_limit; // 24/05/2017
 $oRepository->update(1, ['date_limit' => '25/05/2017']) // Will store 2017-05-25 in the database
 ```
 
-##Custom attribute
+## Custom attribute
 
 You can get specific attribute.
 
@@ -579,6 +579,24 @@ To use it with [getFillFromView](#getfillfromview) you have to define what relat
 * @var array 
 */
 protected $aRelations = ['tag'];
+```
+
+You can specify if the relations are returned as array or collection.
+
+```php
+$oRepository = new ProductRepository();
+
+//True : collection | false : array (good way to work with a lot of data)
+$oRepository->setReturnCollection(false); //True by default
+
+//It will take the name attribut and add the relation tag to an attribut "tag"
+$oProduct = $oRepository->find(1, ['name', 'tag']);
+
+foreach ($oProduct->tag as $oTag)
+{
+    //$oTag is a StdClass
+    echo $oTag->name;
+}
 ```
 
 ## ToDo List
