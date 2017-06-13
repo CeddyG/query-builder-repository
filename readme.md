@@ -485,14 +485,78 @@ class ProductRepository extends QueryBuilderRepository
 }
 ```
 
-And you can use it simply
+And you can use it simply.
 
 ```php
 $oRepository = new ProductRepository();
 
 $oProduct = $oRepository->first(['name', 'category', 'price', 'reference']);
+```
 
+You can specify what column you need for your custom attribute in the class.
 
+```php
+namespace App\Repositories;
+
+use CeddyG\QueryBuilderRepository\QueryBuilderRepository;
+
+class ProductRepository extends QueryBuilderRepository
+{
+    protected $aFillable = ['name', 'category', 'price', 'date_limit'];
+    
+    /**
+     * List of the customs attributes.
+     * 
+     * @var array
+     */
+    protected $aCustomAttribute = [
+        'reference' => [
+            'name',
+            'category'
+        ],
+        'tag_name' => [
+            'tag.name'
+        ]
+    ];
+    
+    /**
+     * Will create a new attribute that not in database
+     *
+     * @param Collection|StdClass $oItem
+     */
+    public function getReferenceAttribute($oItem)
+    {
+        return oItem->name.' '.oItem->category;
+    }
+    
+    /**
+     * Will create a new attribute that not in database
+     *
+     * @param Collection|StdClass $oItem
+     */
+    public function getTagNameAttribute($oItem)
+    {
+        return oItem->tag[0]->name;
+    }
+
+    public function tag()
+    {
+        $sForeignKey = 'fk_product';
+        $sOtherForeignKey = 'fk_tag';
+
+        //If $sForeignKey is null, the method will set 'product_id' (<table name>.'_id')
+        //If $sOtherForeignKey is null, the method will set tag_id (<table name of TagRepository>.'_id')
+        $this->belongsToMany('App\Repositories\TagRepository', 'product_tag', $sForeignKey, $sOtherForeignKey);
+    }
+}
+```
+
+And then.
+
+```php
+$oRepository = new ProductRepository();
+
+$oProduct = $oRepository->first(['price', 'reference', 'tag_name']);
 ```
 
 ## Relationship

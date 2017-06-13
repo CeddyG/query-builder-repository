@@ -118,7 +118,7 @@ abstract class QueryBuilderRepository
      * 
      * @var array
      */
-    protected $aCustomAttribute = [];
+    protected $aCustomAttributeRequest = [];
 
     /**
      * The relationships that should be eager loaded.
@@ -142,12 +142,20 @@ abstract class QueryBuilderRepository
     protected $aIdList = [];
     
     /**
+     * List of the customs attributes.
+     * 
+     * @var array
+     */
+    protected $aCustomAttribute = [];
+
+    /**
      * If we want simple array for the relations or collection.
      * 
      * @var bool
      */
     protected $bReturnCollection = true;
-
+    
+    
     public function __construct()
     {        
         if ($this->sTable == '')
@@ -806,12 +814,33 @@ abstract class QueryBuilderRepository
         
         foreach ($aColumns as $iKey => $sColumn)
         {
+            if (method_exists($this, $this->getCustomAttributeFunction($sColumn)))
+            {
+                $this->aCustomAttributeRequest[] = $sColumn;
+                
+                if (!in_array($sColumn, $this->aFillable))
+                {
+                    unset($aColumns[$iKey]);
+                }
+                
+                if (array_key_exists($sColumn, $this->aCustomAttribute))
+                {
+                    foreach ($this->aCustomAttribute[$sColumn] as $sNeededColumn)
+                    {
+                        $aColumns[] = $sNeededColumn;
+                    }
+                }
+            }
+        }
+        
+        foreach ($aColumns as $iKey => $sColumn)
+        {
             if (strpos($sColumn, '.') !== false)
             {
                 $aColumn = explode('.', $sColumn, 2);
                 $sColumn = $aColumn[0];            
             }
-            
+                      
             if (method_exists($this, $sColumn))
             {
                 if (isset($aColumn[1]))
@@ -823,16 +852,6 @@ abstract class QueryBuilderRepository
                 $this->$sColumn();
                 
                 unset($aColumns[$iKey]);
-            }
-            
-            if (method_exists($this, $this->getCustomAttributeFunction($sColumn)))
-            {
-                $this->aCustomAttribute[] = $sColumn;
-                
-                if (!in_array($sColumn, $this->aFillable))
-                {
-                    unset($aColumns[$iKey]);
-                }
             }
         }
         
@@ -1058,7 +1077,7 @@ abstract class QueryBuilderRepository
                     }
                 }
                 
-                foreach ($this->aCustomAttribute as $sCustomAttribute)
+                foreach ($this->aCustomAttributeRequest as $sCustomAttribute)
                 {
                     $sFunction = $this->getCustomAttributeFunction($sCustomAttribute);
                     $oItem->$sCustomAttribute = $this->$sFunction($oItem);
