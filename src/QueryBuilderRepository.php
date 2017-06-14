@@ -784,7 +784,7 @@ abstract class QueryBuilderRepository
                 'name'          => $sName,
                 'repository'    => $oRepository,
                 'foreign_key'   => $sForeignKey,
-                'where'         =>$aWhere
+                'where'         => $aWhere
             ];
         }
     }
@@ -1173,6 +1173,7 @@ abstract class QueryBuilderRepository
         
         $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
+        $oRepository->setReturnCollection($this->bReturnCollection);
         $oQueryRelation = $oRepository->findWhereIn($sPrimaryKey, $aIdrelation, $aEagerLoad, $aWhere);
                 
         $oQuery->transform(
@@ -1216,6 +1217,7 @@ abstract class QueryBuilderRepository
         
         $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
+        $oRepository->setReturnCollection($this->bReturnCollection);
         $aQueryRelation = $oRepository
             ->findWhereIn($sOtherPrimaryKey, $aIdrelation, $aEagerLoad, $aWhere)
             ->all();
@@ -1286,6 +1288,7 @@ abstract class QueryBuilderRepository
             $aEagerLoad[] = $sForeignKey;
         }
         
+        $oRepository->setReturnCollection($this->bReturnCollection);
         $oQueryRelation = $oRepository
             ->findWhereIn($sForeignKey, $this->aIdList, $aEagerLoad, $aWhere);
         
