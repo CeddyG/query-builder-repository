@@ -812,6 +812,25 @@ abstract class QueryBuilderRepository
             }
         }
         
+        if (in_array('*', $aColumns))
+        {
+            foreach ($this->aFillable as $sFillable)
+            {
+                if (method_exists($this, $this->getCustomAttributeFunction($sFillable)))
+                {
+                    $this->aCustomAttributeRequest[] = $sFillable;
+                    
+                    if (array_key_exists($sFillable, $this->aCustomAttribute))
+                    {
+                        foreach ($this->aCustomAttribute[$sFillable] as $sNeededColumn)
+                        {
+                            $aColumns[] = $sNeededColumn;
+                        }
+                    }
+                }
+            }
+        }
+        
         foreach ($aColumns as $iKey => $sColumn)
         {
             if (method_exists($this, $this->getCustomAttributeFunction($sColumn)))
