@@ -294,7 +294,7 @@ abstract class QueryBuilderRepository
         
         $oQuery = $this->setQuery();
         
-        $this->addWhereClause($aWhere, $oQuery);
+        $this->addWhereClause($aWhere, $oQuery, $aColumns);
         
         $aQuery = $oQuery->get($aColumns);
         
@@ -318,7 +318,7 @@ abstract class QueryBuilderRepository
         $oQuery = $this->setQuery()
             ->whereIn($sField, $aWhere);
         
-        $this->addWhereClause($aAdditionnalWhere, $oQuery);
+        $this->addWhereClause($aAdditionnalWhere, $oQuery, $aColumns);
         
         $aQuery = $oQuery->get($aColumns);
         
@@ -342,7 +342,7 @@ abstract class QueryBuilderRepository
         $oQuery = $this->setQuery()
             ->whereNotIn($sField, $aWhere);
         
-        $this->addWhereClause($aAdditionnalWhere, $oQuery);
+        $this->addWhereClause($aAdditionnalWhere, $oQuery, $aColumns);
         
         $aQuery = $oQuery->get($aColumns);
         
@@ -357,17 +357,86 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function addWhereClause($aWhere, &$oQuery) 
+    private function addWhereClause($aWhere, &$oQuery, $aColumns) 
     {
-        foreach($aWhere as $iKey => $mCondition)
+        $bWhereInRelation = false;
+        foreach($aWhere as $mKey => $mCondition)
         {
-            if(is_array($mCondition))
+            if(!is_array($mCondition))
             {
-                $oQuery->where($mCondition[0], $mCondition[1], $mCondition[2]);
+                $aWhere[$mKey] = [
+                    $mKey, '=', $mCondition
+                ];
+            }
+            
+            if (strpos($mCondition[0], '.') !== false)
+            {
+                $bWhereInRelation = true;
+            }
+        }
+        
+        if ($bWhereInRelation)
+        {
+            $oQueryWhere = $this->setQuery();
+            foreach($aWhere as $mKey => $mCondition)
+            {
+                if (strpos($mCondition[0], '.') !== false)
+                {
+                    $aRelation = explode('.', $mCondition[0], 2);
+                    $sRelation = $aRelation[0];     
+
+                    if (method_exists($this, $sRelation))
+                    {
+                        $sRelation = isset($aRelation[1]) ? $sRelation.'.'.$aRelation[1] : $sRelation;
+                        $this->setJoin($oQueryWhere, $sRelation);
+
+                        $aRelation = explode('.', $sRelation);
+                        $mCondition[0] = 
+                            $aRelation[count($aRelation)-2]
+                            .'.'.
+                            $aRelation[count($aRelation)-1];
+                    }
+                }
+                else
+                {
+                    $mCondition[0] = $this->sTable.'.'.$mCondition[0];
+                }
+
+                $oQueryWhere->where($mCondition[0], $mCondition[1], $mCondition[2]);
+            }
+            
+            if ($aColumns != [$this->sTable.'.'.$this->sPrimaryKey])
+            {
+                $mId = $oQueryWhere->groupBy($this->sTable.'.'.$this->sPrimaryKey);
+        
+                if (!empty($this->aOrderBy))
+                {
+                    $mId = $mId->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction']);
+                }
+
+                $mId = $mId->get([$this->sTable.'.'.$this->sPrimaryKey]);
+
+                if (!$mId instanceof Collection)
+                {
+                    $mId = collect($mId);
+                }
+
+                $aId = $mId->pluck($this->sPrimaryKey)
+                    ->unique()
+                    ->all();
+
+                $oQuery->whereIn($this->sPrimaryKey, $aId);
             }
             else
             {
-                $oQuery->where($iKey, $mCondition);
+                $oQuery = $oQueryWhere;
+            }
+        }
+        else
+        {
+            foreach($aWhere as $mKey => $mCondition)
+            {
+                $oQuery->where($mCondition[0], $mCondition[1], $mCondition[2]);
             }
         }
     }
@@ -934,8 +1003,13 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    public function setJoin(&$oQuery, $sRelation)
+    public function setJoin(&$oQuery, $sRelation, $sAlias = null)
     {
+        if ($sAlias == null)
+        {
+            $sAlias = $this->sTable;
+        }
+        
         $this->flushRelation();
         
         if (strpos($sRelation, '.') !== false)
@@ -948,13 +1022,13 @@ abstract class QueryBuilderRepository
         {
             $this->$sRelation();
             
-            $this->setLeftJoinOnBelongsTo($oQuery, $oRepository);
-            $this->setLeftJoinOnBelongsToMany($oQuery, $oRepository);
-            $this->setLeftJoinOnHasMany($oQuery, $oRepository);
+            $this->setLeftJoinOnBelongsTo($sAlias, $oQuery, $oRepository);
+            $this->setLeftJoinOnBelongsToMany($sAlias, $oQuery, $oRepository);
+            $this->setLeftJoinOnHasMany($sAlias, $oQuery, $oRepository);
             
             if (isset($aRelation[1]) && $oRepository !== null)
             {
-                $oRepository->setJoin($oQuery, $aRelation[1]);
+                $oRepository->setJoin($oQuery, $aRelation[1], $sRelation);
             }
         }
         
@@ -968,7 +1042,7 @@ abstract class QueryBuilderRepository
      * 
      * @return object|bool
      */
-    private function setLeftJoinOnBelongsTo(&$oQuery, &$oRepository = null)
+    private function setLeftJoinOnBelongsTo($sAlias, &$oQuery, &$oRepository = null)
     {
         if (!empty($this->aBelongsTo))
         {
@@ -982,7 +1056,7 @@ abstract class QueryBuilderRepository
                     $oRepository->getTable().' as '.$sName, 
                     $sName.'.'.$oRepository->getPrimaryKey(), 
                     '=', 
-                    $this->sTable.'.'.$sForeignKey
+                    $sAlias.'.'.$sForeignKey
                 );
             }
         }
@@ -995,7 +1069,7 @@ abstract class QueryBuilderRepository
      * 
      * @return object|bool
      */
-    private function setLeftJoinOnBelongsToMany(&$oQuery, &$oRepository = null)
+    private function setLeftJoinOnBelongsToMany($sAlias, &$oQuery, &$oRepository = null)
     {
         if (!empty($this->aBelongsToMany))
         {
@@ -1011,7 +1085,7 @@ abstract class QueryBuilderRepository
                     $sTablePivot,
                     $sTablePivot.'.'.$sForeignKey, 
                     '=', 
-                    $this->sTable.'.'.$this->sPrimaryKey
+                    $sAlias.'.'.$this->sPrimaryKey
                 );
 
                 $oQuery->leftJoin(
@@ -1031,7 +1105,7 @@ abstract class QueryBuilderRepository
      * 
      * @return object|bool
      */
-    private function setLeftJoinOnHasMany(&$oQuery, &$oRepository = null)
+    private function setLeftJoinOnHasMany($sAlias, &$oQuery, &$oRepository = null)
     {
         if (!empty($this->aHasMany))
         {
@@ -1045,7 +1119,7 @@ abstract class QueryBuilderRepository
                     $oRepository->getTable().' as '.$sName, 
                     $sName.'.'.$sForeignKey, 
                     '=', 
-                    $this->sTable.'.'.$this->sPrimaryKey
+                    $sAlias.'.'.$this->sPrimaryKey
                 );
             }
         }
