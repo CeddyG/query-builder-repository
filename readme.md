@@ -663,6 +663,30 @@ foreach ($oProduct->tag as $oTag)
 }
 ```
 
+## Connection
+
+You can specify a database (set in config/database.php).
+
+```php
+namespace App\Repositories;
+
+use Ceddyg\QueryBuilderRepository\QueryBuilderRepository;
+
+class ProductRepository extends QueryBuilderRepository
+{
+    protected $sConnection = 'mysql';
+}
+```
+
+Or
+
+```php
+$oRepository = new ProductRepository();
+$oRepository->setConnection('mysql');
+
+$oProduct = $oRepository->find(1);
+```
+
 ## ToDo List
 
 - Add specific setter

@@ -155,7 +155,14 @@ abstract class QueryBuilderRepository
      */
     protected $bReturnCollection = true;
     
+    /**
+     * Set the database connection, which in config/database.php
+     * 
+     * @var string
+     */
+    protected $sConnection = '';
     
+
     public function __construct()
     {        
         if ($this->sTable == '')
@@ -183,9 +190,17 @@ abstract class QueryBuilderRepository
         return $this->sPrimaryKey;
     }
     
+    /**
+     * Setter
+     */
     public function setReturnCollection(bool $bReturnCollection)
     {
         $this->bReturnCollection = $bReturnCollection;
+    }
+    
+    public function setConnection($sConnection)
+    {
+        $this->sConnection = $sConnection;
     }
     
     /**
@@ -456,7 +471,14 @@ abstract class QueryBuilderRepository
         
         if ($sSearch != '')
         {
-            $oQueryToCount = DB::table($this->sTable);
+            if ($this->sConnection != '')
+            {
+                $oQueryToCount = DB::connection($this->sConnection)->table($this->sTable);
+            }
+            else
+            {
+                $oQueryToCount = DB::table($this->sTable);            
+            }
         }
         
         foreach ($aFiealdToSearch as $sColumn)
@@ -502,8 +524,19 @@ abstract class QueryBuilderRepository
         
         if ($sSearch != '')
         {
-            $this->iTotalFiltered = $oQueryToCount
+            if ($this->sConnection != '')
+            {
+                $this->iTotalFiltered = $oQueryToCount
+                ->count(
+                    DB::connection($this->sConnection)
+                    ->raw('DISTINCT '.$this->sTable.'.'.$this->sPrimaryKey)
+                ); 
+            }
+            else
+            {
+                $this->iTotalFiltered = $oQueryToCount
                 ->count(DB::raw('DISTINCT '.$this->sTable.'.'.$this->sPrimaryKey));
+            }            
         }
         
         $this->aLimit = [];
@@ -537,7 +570,7 @@ abstract class QueryBuilderRepository
      */
     public function count()
     {
-        return DB::table($this->sTable)->count();
+        return $this->setQuery()->count();
     }
     
     /**
@@ -635,12 +668,12 @@ abstract class QueryBuilderRepository
                 $aFormattedAttributes[] = $this->fillableFromArray($aAttribute);
             }
             
-            return DB::table($this->sTable)->insert($aFormattedAttributes);
+            return $this->setQuery()->insert($aFormattedAttributes);
         }
         else
         {
             $aAttributes    = $this->fillableFromArray($aAttributes);
-            $id             = DB::table($this->sTable)->insertGetId($aAttributes);
+            $id             = $this->setQuery()->insertGetId($aAttributes);
             
             $this->syncRelations($id, $aAttributes);
             
@@ -660,7 +693,7 @@ abstract class QueryBuilderRepository
     {        
         $aFill = $this->fillableFromArray($aAttributes);
         
-        $mId = DB::table($this->sTable)
+        $mId = $this->setQuery()
             ->where($this->sPrimaryKey, $id)
             ->update($aFill);
         
@@ -681,7 +714,7 @@ abstract class QueryBuilderRepository
     {
         $aAttribute = $this->fillableFromArray($aAttribute);
         
-        return DB::table($this->sTable)->updateOrInsert($aAttribute, $aValues);
+        return $this->setQuery()->updateOrInsert($aAttribute, $aValues);
     }
     
     /**
@@ -695,13 +728,13 @@ abstract class QueryBuilderRepository
     {
         if(is_array($id))
         {
-            return DB::table($this->sTable)
+            return $this->setQuery()
                 ->whereIn($this->sPrimaryKey, $id)
                 ->delete();
         }
         else
         {
-            return DB::table($this->sTable)
+            return $this->setQuery()
                 ->where($this->sPrimaryKey, $id)
                 ->delete();
         }
@@ -979,7 +1012,14 @@ abstract class QueryBuilderRepository
      */
     private function setQuery()
     {
-        $oQuery = DB::table($this->sTable);
+        if ($this->sConnection != '')
+        {
+            $oQuery = DB::connection($this->sConnection)->table($this->sTable);
+        }
+        else
+        {
+            $oQuery = DB::table($this->sTable);            
+        }
         
         if (!empty($this->aOrderBy) && strpos($this->aOrderBy['field'], '.') === false)
         {
@@ -1300,8 +1340,17 @@ abstract class QueryBuilderRepository
         $sOtherPrimaryKey   = $oRepository->getPrimaryKey();
         $aWhere             = $aRelation['where'];
         
+        if ($this->sConnection != '')
+        {
+            $oQueryPivot = DB::connection($this->sConnection)->table($sTablePivot);
+        }
+        else
+        {
+            $oQueryPivot = DB::table($sTablePivot);            
+        }
+        
         $oTablePivots = collect(
-            DB::table($sTablePivot)
+            $oQueryPivot
             ->whereIn($sForeignKey, $this->aIdList)
             ->get()
         );
