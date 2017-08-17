@@ -1185,6 +1185,7 @@ abstract class QueryBuilderRepository
         $this->getCustomAttribute($mQuery);
         
         $this->aIdList = [];
+        $this->aCustomAttributeRequest = [];
         
         return $mQuery;
     }
