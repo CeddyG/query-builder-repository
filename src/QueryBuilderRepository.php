@@ -1308,6 +1308,7 @@ abstract class QueryBuilderRepository
         $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
         $oRepository->setReturnCollection($this->bReturnCollection);
+        $this->changeConnectionRepository($oRepository);
         $oQueryRelation = $oRepository->findWhereIn($sPrimaryKey, $aIdrelation, $aEagerLoad, $aWhere);
                 
         $oQuery->transform(
@@ -1361,6 +1362,7 @@ abstract class QueryBuilderRepository
         $aEagerLoad = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
         $oRepository->setReturnCollection($this->bReturnCollection);
+        $this->changeConnectionRepository($oRepository);
         $aQueryRelation = $oRepository
             ->findWhereIn($sOtherPrimaryKey, $aIdrelation, $aEagerLoad, $aWhere)
             ->all();
@@ -1432,6 +1434,7 @@ abstract class QueryBuilderRepository
         }
         
         $oRepository->setReturnCollection($this->bReturnCollection);
+        $this->changeConnectionRepository($oRepository);
         $oQueryRelation = $oRepository
             ->findWhereIn($sForeignKey, $this->aIdList, $aEagerLoad, $aWhere);
         
@@ -1464,6 +1467,19 @@ abstract class QueryBuilderRepository
                 return $oItem;
             }
         );
+    }
+    
+    /**
+     * Change the connection of a given repository.
+     * 
+     * @param Ceddyg\QueryBuilderRepository $oRepository
+     */
+    public function changeConnectionRepository(&$oRepository)
+    {
+        if ($this->sConnection != '')
+        {
+            $oRepository->setConnection($this->sConnection);
+        }
     }
 
     /**
