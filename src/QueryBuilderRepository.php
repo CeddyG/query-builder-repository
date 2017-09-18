@@ -526,16 +526,17 @@ abstract class QueryBuilderRepository
         {
             if ($this->sConnection != '')
             {
+                $sPrefix = DB::connection($this->sConnection)->getTablePrefix();
                 $this->iTotalFiltered = $oQueryToCount
                 ->count(
                     DB::connection($this->sConnection)
-                    ->raw('DISTINCT '.$this->sTable.'.'.$this->sPrimaryKey)
+                    ->raw('DISTINCT '.$sPrefix.$this->sTable.'.'.$this->sPrimaryKey)
                 ); 
             }
             else
             {
                 $this->iTotalFiltered = $oQueryToCount
-                ->count(DB::raw('DISTINCT '.$this->sTable.'.'.$this->sPrimaryKey));
+                ->count(DB::raw('DISTINCT '.DB::getTablePrefix().$this->sTable.'.'.$this->sPrimaryKey));
             }            
         }
         
