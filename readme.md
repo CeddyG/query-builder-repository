@@ -235,11 +235,15 @@ Insert or update a record matching the attributes, and fill it with values.
 $oRepository = new ProductRepository();
 
 $aAttributes = [
+    'ref' => 'PROD-01'
+];
+
+$aValues = [
     'name'      => 'Matrix 2',
     'category'   => 'DVD'
 ];
 
-$oProduct = $oRepository->updateOrCreate($aAttributes)
+$oProduct = $oRepository->updateOrCreate($aAttributes, $aValues)
 ```
 
 #### delete
