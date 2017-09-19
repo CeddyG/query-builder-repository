@@ -713,9 +713,7 @@ abstract class QueryBuilderRepository
      */
     public function updateOrCreate(array $aAttribute, array $aValues = [])
     {
-        $aAttribute = $this->fillableFromArray($aAttribute);
-        
-        return $this->setQuery()->updateOrInsert($aAttribute, $aValues);
+        return $this->setQuery()->updateOrInsert($aAttribute, $this->fillableFromArray($aValues));
     }
     
     /**
