@@ -418,6 +418,40 @@ $oProducts = $oRepository->limit(5, 5)->all(); //Will take the 5 records after t
 $oProduct = $oRepository->limit(0, 10)->find(1, ['name']); //Useless
 ```
 
+## Timestamp
+
+You can automatically set a timestamp to a record.
+
+```php
+namespace App\Repositories;
+
+use CeddyG\QueryBuilderRepository\QueryBuilderRepository;
+
+class ProductRepository extends QueryBuilderRepository
+{
+    /**
+     * Indicates if the query should be timestamped.
+     *
+     * @var bool
+     */
+    protected $bTimestamp = true;
+
+    /**
+     * The name of the "created at" column.
+     *
+     * @var string
+     */
+    const CREATED_AT = 'created_at';
+
+    /**
+     * The name of the "updated at" column.
+     *
+     * @var string
+     */
+    const UPDATED_AT = 'updated_at';
+}
+```
+
 ## Date
 
 You can specify the default date format from the database and the default date format to store in the database.

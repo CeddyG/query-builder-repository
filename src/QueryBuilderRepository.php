@@ -162,6 +162,27 @@ abstract class QueryBuilderRepository
      */
     protected $sConnection = '';
     
+    /**
+     * Indicates if the query should be timestamped.
+     *
+     * @var bool
+     */
+    protected $bTimestamp = false;
+
+    /**
+     * The name of the "created at" column.
+     *
+     * @var string
+     */
+    const CREATED_AT = 'created_at';
+
+    /**
+     * The name of the "updated at" column.
+     *
+     * @var string
+     */
+    const UPDATED_AT = 'updated_at';
+    
 
     public function __construct()
     {        
@@ -666,19 +687,42 @@ abstract class QueryBuilderRepository
             
             foreach ($aAttributes as $aAttribute)
             {
-                $aFormattedAttributes[] = $this->fillableFromArray($aAttribute);
+                $aFill = $this->fillableFromArray($aAttribute);
+                
+                $this->setCreateTimestamp($aFill);
+                
+                $aFormattedAttributes[] = $aFill;
             }
             
             return $this->setQuery()->insert($aFormattedAttributes);
         }
         else
         {
-            $aAttributes    = $this->fillableFromArray($aAttributes);
-            $id             = $this->setQuery()->insertGetId($aAttributes);
+            $aFill    = $this->fillableFromArray($aAttributes);
             
-            $this->syncRelations($id, $aAttributes);
+            $this->setCreateTimestamp($aFill);
+            
+            $id             = $this->setQuery()->insertGetId($aFill);
+            
+            $this->syncRelations($id, $aFill);
             
             return $id;
+        }
+    }
+    
+    /**
+     * Add the current date to the creation if timestamp is set.
+     * 
+     * @param type $aAttributes
+     * 
+     * @return void
+     */
+    private function setCreateTimestamp(&$aAttributes)
+    {
+        if ($this->bTimestamp)
+        {
+            $aAttributes[static::CREATED_AT] = Carbon::now();
+            $aAttributes[static::UPDATED_AT] = Carbon::now();
         }
     }
     
@@ -693,6 +737,8 @@ abstract class QueryBuilderRepository
     public function update($id, array $aAttributes)
     {        
         $aFill = $this->fillableFromArray($aAttributes);
+        
+        $this->setUpdateTimestamp($aFill);
         
         $mId = $this->setQuery()
             ->where($this->sPrimaryKey, $id)
@@ -713,7 +759,32 @@ abstract class QueryBuilderRepository
      */
     public function updateOrCreate(array $aAttribute, array $aValues = [])
     {
-        return $this->setQuery()->updateOrInsert($aAttribute, $this->fillableFromArray($aValues));
+        $oItem = $this->findWhere($aAttribute, [$this->sPrimaryKey])->first();
+        
+        if ($oItem !== null)
+        {
+            $sPrimaryKey = $this->sPrimaryKey;
+            return $this->update($oItem->$sPrimaryKey, $aValues);
+        }
+        else
+        {
+            return $this->create($aValues);
+        }
+    }
+    
+    /**
+     * Add the current date to the update if timestamp is set.
+     * 
+     * @param type $aAttributes
+     * 
+     * @return void
+     */
+    private function setUpdateTimestamp(&$aAttributes)
+    {
+        if ($this->bTimestamp)
+        {
+            $aAttributes[static::UPDATED_AT] = Carbon::now();
+        }
     }
     
     /**
