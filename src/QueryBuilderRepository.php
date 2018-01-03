@@ -483,10 +483,11 @@ abstract class QueryBuilderRepository
      * @param string $sSearch
      * @param array $aFiealdToSearch
      * @param array $aColumns
+     * @param array $aWhere
      * 
      * @return \Illuminate\Database\Eloquent\Collection|static[]
      */
-    public function search($sSearch, array $aFiealdToSearch, array $aColumns = ['*'])
+    public function search($sSearch, array $aFiealdToSearch, array $aColumns = ['*'], array $aWhere = [])
     {
         $oQuery = $this->setQuery();
         
@@ -542,6 +543,11 @@ abstract class QueryBuilderRepository
                 $oQueryToCount->orWhere($sColumn, 'like', '%'. $sSearch .'%');
             }
         }
+		
+		if (!empty($aWhere))
+		{
+			$this->addWhereClause($aWhere, $oQuery, $aColumns);
+		}
         
         if ($sSearch != '')
         {
@@ -1745,10 +1751,11 @@ abstract class QueryBuilderRepository
      * Build a Json to be use with the Jquery Datatable server side.
      * 
      * @param array $aData
+     * @param array $aWhere
      * 
      * @return JsonResponse
      */
-    public function datatable(array $aData)
+    public function datatable(array $aData, array $aWhere = [])
     {
         $aColumns   = $this->buildColumns($aData);
         
@@ -1757,7 +1764,7 @@ abstract class QueryBuilderRepository
         
         $oQuery = $this->orderBy($sOrder, $aOrder['dir'])
             ->limit($aData['start'], $aData['length'])
-            ->search($aData['search']['value'], $aColumns, $aColumns);
+            ->search($aData['search']['value'], $aColumns, $aColumns, $aWhere);
         
         $this->addCustomValues($oQuery, $aData);
         $this->sortCollection($oQuery, $aData['columns'][$aOrder['column']]);
