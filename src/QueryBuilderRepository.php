@@ -214,9 +214,9 @@ abstract class QueryBuilderRepository
     /**
      * Setter
      */
-    public function setReturnCollection(bool $bReturnCollection)
+    public function setReturnCollection($bReturnCollection)
     {
-        $this->bReturnCollection = $bReturnCollection;
+        $this->bReturnCollection = (bool) $bReturnCollection;
     }
     
     public function setConnection($sConnection)
@@ -503,6 +503,7 @@ abstract class QueryBuilderRepository
             }
         }
         
+		$aOrWhere = [];
         foreach ($aFiealdToSearch as $sColumn)
         {
             if (strpos($sColumn, '.') !== false)
@@ -539,14 +540,37 @@ abstract class QueryBuilderRepository
                 
             if ($sSearch != '')
             {
-                $oQuery->orWhere($sColumn, 'like', '%'. $sSearch .'%');
-                $oQueryToCount->orWhere($sColumn, 'like', '%'. $sSearch .'%');
+				$aOrWhere[] = [$sColumn, 'like', '%'. $sSearch .'%'];
             }
         }
 		
 		if (!empty($aWhere))
 		{
 			$this->addWhereClause($aWhere, $oQuery, $aColumns);
+		}
+		
+		$oQuery->where(function($oSubQuery) use ($aOrWhere)
+		{
+			foreach ($aOrWhere as $aWhere)
+			{
+				$oSubQuery->orWhere($aWhere[0], $aWhere[1], $aWhere[2]);
+			}
+		});
+		
+		if (isset($oQueryToCount))
+		{
+			$oQueryToCount->where(function($oSubQuery) use ($aOrWhere)
+			{
+				foreach ($aOrWhere as $aWhere)
+				{
+					$oSubQuery->orWhere($aWhere[0], $aWhere[1], $aWhere[2]);
+				}
+			});
+			
+			if (!empty($aWhere))
+			{
+				$this->addWhereClause($aWhere, $oQueryToCount, $aColumns);
+			}
 		}
         
         if ($sSearch != '')
@@ -587,18 +611,28 @@ abstract class QueryBuilderRepository
             ->unique()
             ->all();
             
-        return $this->findWhereIn($this->sPrimaryKey, $aId, $aColumns);
-        
+        return $this->findWhereIn($this->sPrimaryKey, $aId, $aColumns);        
     }
     
     /**
      * Return the total record in a database.
      * 
+	 * @param array $aWhere
+	 * 
      * @return int
      */
-    public function count()
+    public function count(array $aWhere = [])
     {
-        return $this->setQuery()->count();
+		if (!empty($aWhere))
+		{
+			return $this->setQueryConnection()
+				->where($aWhere)
+				->count();
+		}
+		else
+		{
+			return $this->setQuery()->count();
+		}
     }
     
     /**
@@ -1088,14 +1122,7 @@ abstract class QueryBuilderRepository
      */
     private function setQuery()
     {
-        if ($this->sConnection != '')
-        {
-            $oQuery = DB::connection($this->sConnection)->table($this->sTable);
-        }
-        else
-        {
-            $oQuery = DB::table($this->sTable);            
-        }
+        $oQuery = $this->setQueryConnection();
         
         if (!empty($this->aOrderBy) && strpos($this->aOrderBy['field'], '.') === false)
         {
@@ -1110,6 +1137,23 @@ abstract class QueryBuilderRepository
         
         return $oQuery;
     }
+	
+	/**
+	 * Create the query with the right connection.
+	 * 
+	 * @return object
+	 */
+	private function setQueryConnection()
+	{
+		if ($this->sConnection != '')
+        {
+            return DB::connection($this->sConnection)->table($this->sTable);
+        }
+        else
+        {
+            return DB::table($this->sTable);            
+        }
+	}
     
     /**
      * Set the join to the query.
@@ -1769,7 +1813,7 @@ abstract class QueryBuilderRepository
         $this->addCustomValues($oQuery, $aData);
         $this->sortCollection($oQuery, $aData['columns'][$aOrder['column']]);
         
-        $iTotal = $this->count();
+        $iTotal = $this->count($aWhere);
         
         $aOutput = array_merge([
             'recordsTotal'      => $iTotal,
@@ -1780,7 +1824,7 @@ abstract class QueryBuilderRepository
         return new JsonResponse($aOutput);
     }
     
-    public function select2(array $aData)
+    public function select2(array $aData, array $aWhere = [])
     {
         $sPrimaryKey    = $this->getPrimaryKey();
         $sSearch        = isset($aData['q']) ? $aData['q'] : '';
@@ -1789,11 +1833,11 @@ abstract class QueryBuilderRepository
         
         $oItems = $this->limit(($iPage-1)*30, 30)
             ->orderBy($sField)
-            ->search($sSearch, [$sField], [$sPrimaryKey, $sField]);
+            ->search($sSearch, [$sField], [$sPrimaryKey, $sField], $aWhere);
         
         $iCount = $sSearch != '' 
             ? $this->iTotalFiltered
-            : $this->count();
+            : $this->count($aWhere);
         
         $oItems->transform(function ($oItem) use ($sPrimaryKey, $sField){
             $oItem->id = $oItem->$sPrimaryKey;
