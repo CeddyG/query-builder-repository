@@ -149,6 +149,27 @@ abstract class QueryBuilderRepository
     protected $aCustomAttribute = [];
 
     /**
+     * If we are creating or updating a record.
+     * 
+     * @var string
+     */
+    protected $sMethod = '';
+
+    /**
+     * List of value that must have a default value when a record is stored.
+     * 
+     * @var array
+     */
+    protected $aDefaultCreate = [];
+    
+    /**
+     * List of value that must have a default value when a record is updated.
+     * 
+     * @var array
+     */
+    protected $aDefaultUpdate = [];
+
+    /**
      * If we want simple array for the relations or collection.
      * 
      * @var bool
@@ -721,6 +742,8 @@ abstract class QueryBuilderRepository
      */
     public function create(array $aAttributes)
     {
+        $this->sMethod = 'create';
+        
         if(is_array(array_values($aAttributes)[0]))
         {
             $aFormattedAttributes = [];
@@ -729,6 +752,7 @@ abstract class QueryBuilderRepository
             {
                 $aFill = $this->fillableFromArray($aAttribute);
                 
+                $this->setCustomAttribute($aFill, 'create');
                 $this->setCreateTimestamp($aFill);
                 
                 $aFormattedAttributes[] = $aFill;
@@ -738,15 +762,52 @@ abstract class QueryBuilderRepository
         }
         else
         {
-            $aFill    = $this->fillableFromArray($aAttributes);
+            $aFill = $this->fillableFromArray($aAttributes);
             
+            $this->setCustomAttribute($aFill, 'create');
             $this->setCreateTimestamp($aFill);
             
-            $id             = $this->setQuery()->insertGetId($aFill);
+            $id = $this->setQuery()->insertGetId($aFill);
             
             $this->syncRelations($id, $aFill);
             
             return $id;
+        }
+    }
+    
+    private function setCustomAttribute(&$aFill, $sMethod)
+    {
+        if ($sMethod == 'create')
+        {
+            $aDefault = $this->aDefaultCreate;
+        }
+        elseif ($sMethod == 'update')
+        {
+            $aDefault = $this->aDefaultUpdate;
+        }
+        else
+        {
+            return null;
+        }
+        
+        foreach ($aFill as $sAttribute)
+        {
+            $sFunction = $this->getCustomAttributeFunction($sAttribute, 'set');       
+
+            if (method_exists($this, $sFunction))
+            {
+                $aFill[$sAttribute] = $this->$sFunction($aFill);
+            }
+        }
+
+        foreach ($aDefault as $sAttribute)
+        {
+            $sFunction = $this->getCustomAttributeFunction($sAttribute, 'set');
+
+            if (!isset($aFill[$sAttribute]) && method_exists($this, $sFunction))
+            {
+                $aFill[$sAttribute] = $this->$sFunction($aFill);
+            }
         }
     }
     
@@ -776,8 +837,11 @@ abstract class QueryBuilderRepository
      */
     public function update($id, array $aAttributes)
     {        
+        $this->sMethod = 'update';
+        
         $aFill = $this->fillableFromArray($aAttributes);
         
+        $this->setCustomAttribute($aFill, 'update');
         $this->setUpdateTimestamp($aFill);
         
         $mId = $this->setQuery()
@@ -1342,9 +1406,9 @@ abstract class QueryBuilderRepository
         );
     }
     
-    private function getCustomAttributeFunction($sAttribute)
+    private function getCustomAttributeFunction($sAttribute, $sType = 'get')
     {
-        return 'get'.ucfirst(camel_case($sAttribute)).'Attribute';
+        return $sType.ucfirst(camel_case($sAttribute)).'Attribute';
     }
     
     /**
