@@ -877,6 +877,64 @@ abstract class QueryBuilderRepository
     }
     
     /**
+     * Insert or update a record matching the attributes, and fill it with values for multiple record.
+     * 
+     * @param array $aAttributes
+     * @param array $aValues
+     * 
+     * @return bool
+     */
+    public function updateOrCreateMulti(array $aAttributes, array $aValues = [])
+    {
+        $oQuery = $this->setQuery();
+        foreach ($aAttributes as $sAttribute)
+        {
+            $oQuery->whereIn($sAttribute, array_column($aValues, $sAttribute));
+        }
+        
+        $aFieldToSeek = $aAttributes;
+        if (!in_array($this->sPrimaryKey, $aFieldToSeek))
+        {
+            $aFieldToSeek[] = $this->sPrimaryKey;
+        }
+        
+        $oItems = $oQuery->get($aFieldToSeek);
+        
+        $aToInsert = [];
+        foreach ($aValues as $aValue)
+        {
+            $oSeek = null;
+            
+            foreach ($aAttributes as $sAttribute)
+            {
+                if ($oSeek == null)
+                {
+                    $oSeek = $oItems;
+                }
+                
+                $oSeek = $oSeek->where($sAttribute, $aValue[$sAttribute]);
+            }
+            
+            if ($oSeek->isEmpty())
+            {
+                $aToInsert[] = $aValue;
+            }
+            else
+            {
+                $oItem          = $oSeek->first();
+                $sPrimaryKey    = $this->sPrimaryKey;
+                
+                $this->update($oItem->$sPrimaryKey, $aValue);
+            }
+        }
+        
+        if (!empty($aToInsert))
+        {
+            $this->create($aToInsert);
+        }
+    }
+    
+    /**
      * Add the current date to the update if timestamp is set.
      * 
      * @param type $aAttributes
