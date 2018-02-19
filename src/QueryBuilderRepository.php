@@ -1105,20 +1105,20 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    protected function hasMany($sRepository, $sForeignKey = null, array $aWhere = [])
+    protected function hasMany($sRepository, $sForeignKey = null, array $aWhere = [], $sForeignPrimaryKey = null)
     {
         $sName = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
         
         if (array_search($sName, array_column($this->aHasMany, 'name')) === false)
         {
             $oRepository = new $sRepository();
-            $sForeignKey = $sForeignKey ?: Str::snake($this->sTable).'_id';
 
             $this->aHasMany[] = [
-                'name'          => $sName,
-                'repository'    => $oRepository,
-                'foreign_key'   => $sForeignKey,
-                'where'         => $aWhere
+                'name'                  => $sName,
+                'repository'            => $oRepository,
+                'foreign_key'           => $sForeignKey ?: Str::snake($this->sTable).'_id',
+                'where'                 => $aWhere,
+                'foreign_primary_key'   => $sForeignPrimaryKey ?: $oRepository->getPrimaryKey()
             ];
         }
     }
@@ -1661,18 +1661,24 @@ abstract class QueryBuilderRepository
      */
     private function hasManyQuery(array $aRelation, &$oQuery)
     {
-        $sName          = $aRelation['name'];
-        $oRepository    = $aRelation['repository'];
-        $sForeignKey    = $aRelation['foreign_key'];
-        $aWhere         = $aRelation['where'];
+        $sName                  = $aRelation['name'];
+        $oRepository            = $aRelation['repository'];
+        $sForeignKey            = $aRelation['foreign_key'];
+        $aWhere                 = $aRelation['where'];
+        $sForeignPrimaryKey     = $aRelation['foreign_primary_key'];
         
-        $sPrimaryKey    = $this->sPrimaryKey;
+        $sPrimaryKey            = $this->sPrimaryKey;
         
         $aEagerLoad     = (isset($this->aEagerLoad[$sName])) ? $this->aEagerLoad[$sName] : ['*'];
         
         if ($aEagerLoad[0] != '*' && !in_array($sForeignKey, $aEagerLoad))
         {
             $aEagerLoad[] = $sForeignKey;
+        }
+        
+        if ($aEagerLoad[0] != '*' && !in_array($sForeignPrimaryKey, $aEagerLoad))
+        {
+            $aEagerLoad[] = $sForeignPrimaryKey;
         }
         
         $oRepository->setReturnCollection($this->bReturnCollection);
@@ -1683,7 +1689,7 @@ abstract class QueryBuilderRepository
         $aFinalRelation = [];
         foreach ($oQueryRelation as $oRelation)
         {
-            $aFinalRelation[$oRelation->$sForeignKey][] = $oRelation;
+            $aFinalRelation[$oRelation->$sForeignKey][$oRelation->$sForeignPrimaryKey] = $oRelation;
         }
         unset($oQueryRelation);
         
@@ -1776,7 +1782,7 @@ abstract class QueryBuilderRepository
      */
     public function getFillFromView($sView)
     {
-        $sContents = File::get(base_path().'/resources/views/'. $sView .'.blade.php');
+        $sContents = view($sView);
         
         $this->aFillForQuery = [];
         foreach ($this->aFillable as $sFillable)
