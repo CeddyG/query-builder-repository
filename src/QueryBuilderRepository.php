@@ -989,7 +989,14 @@ abstract class QueryBuilderRepository
         {
             $this->flushRelation();
             $this->$sRelation();
-
+            
+            if (!isset($this->aBelongsToMany[0]))
+            {
+                $this->flushRelation();
+                
+                return;
+            }
+            
             $aRelation = $this->aBelongsToMany[0];
             
             if (is_array($aRelation) && !empty($aIdToSync))
