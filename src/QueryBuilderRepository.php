@@ -3,7 +3,6 @@
 namespace Ceddyg\QueryBuilderRepository;
 
 use DB;
-use File;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
@@ -970,6 +969,22 @@ abstract class QueryBuilderRepository
                 ->where($this->sPrimaryKey, $id)
                 ->delete();
         }
+    }
+    
+    /**
+     * Delete one or many records from the database with a where clause.
+     * 
+     * @param array $aWhere
+     * 
+     * @return int Count of deleted records
+     */
+    public function deleteWhere(array $aWhere)
+    {
+        $oQuery = $this->setQuery();
+        
+        $this->addWhereClause($aWhere, $oQuery, []);
+        
+        return $oQuery->delete();
     }
     
     private function syncRelations($id, $aAttributes)
