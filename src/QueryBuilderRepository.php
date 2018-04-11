@@ -789,7 +789,7 @@ abstract class QueryBuilderRepository
             return null;
         }
         
-        foreach ($aFill as $sAttribute)
+        foreach ($aFill as $sAttribute => $mValue)
         {
             $sFunction = $this->getCustomAttributeFunction($sAttribute, 'set');       
 
@@ -799,7 +799,7 @@ abstract class QueryBuilderRepository
             }
         }
 
-        foreach ($aDefault as $sAttribute)
+        foreach ($aDefault as $sAttribute => $mValue)
         {
             $sFunction = $this->getCustomAttributeFunction($sAttribute, 'set');
 
