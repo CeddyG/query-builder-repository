@@ -1468,7 +1468,7 @@ abstract class QueryBuilderRepository
             {
                 foreach ($oItem as $sAttribute => $mValue)
                 {
-                    if (in_array($sAttribute, $this->aDates))
+                    if (in_array($sAttribute, $this->aDates) && $mValue !== null)
                     {
                         $oItem->$sAttribute = Carbon::parse($mValue)
                             ->format($this->sDateFormatToGet);
@@ -1786,7 +1786,7 @@ abstract class QueryBuilderRepository
     {
         foreach ($aAttributes as $sAttribute => $mValue)
         {
-            if (in_array($sAttribute, $this->aDates))
+            if (in_array($sAttribute, $this->aDates) && $mValue !== null)
             {
                 $sTmpDate = str_replace('/', '-', $mValue);
                 
