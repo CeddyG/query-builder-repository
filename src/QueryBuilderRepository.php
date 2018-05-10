@@ -766,7 +766,7 @@ abstract class QueryBuilderRepository
             $this->setCustomAttribute($aFill, 'create');
             $this->setCreateTimestamp($aFill);
             
-            $id = $this->setQuery()->insertGetId($aFill);
+            $id = $this->setQuery()->insertGetId($aFill, $this->getPrimaryKey());
             
             $this->syncRelations($id, $aFill);
             
