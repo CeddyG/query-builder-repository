@@ -1927,7 +1927,7 @@ abstract class QueryBuilderRepository
             }
             else
             {
-                $aValue = $this->buildEasterValue($oSubItem, $aAttribute[1], $aValue);
+                $aValue = $this->buildEasterValue($oItem->$sAttribute, $aAttribute[1], $aValue);
             }
         }
         else
