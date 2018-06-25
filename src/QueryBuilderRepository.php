@@ -3,6 +3,7 @@
 namespace Ceddyg\QueryBuilderRepository;
 
 use DB;
+use Closure;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
@@ -399,6 +400,27 @@ abstract class QueryBuilderRepository
             ->whereNotIn($sField, $aWhere);
         
         $this->addWhereClause($aAdditionnalWhere, $oQuery, $aColumns);
+        
+        $aQuery = $oQuery->get($aColumns);
+        
+        return $this->setResponse($aQuery);
+    }
+    
+    /**
+     * Build a custom query.
+     * 
+     * @param Closure $oClosure
+     * @param array $aColumns
+     * 
+     * @return \Illuminate\Database\Eloquent\Collection|static[]
+     */
+    public function findCustom(Closure $oClosure, array $aColumns = ['*'])
+    {
+        $this->setColumns($aColumns);
+        
+        $oQuery = $this->setQuery();
+            
+        call_user_func($oClosure, $oQuery);
         
         $aQuery = $oQuery->get($aColumns);
         
