@@ -1826,7 +1826,7 @@ abstract class QueryBuilderRepository
      */
     public function getFillFromView($sView)
     {
-        $sContents = view($sView);
+        $sContents = file_get_contents(view($sView)->getPath());
         
         $this->aFillForQuery = [];
         foreach ($this->aFillable as $sFillable)
