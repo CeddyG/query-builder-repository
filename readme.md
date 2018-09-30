@@ -44,6 +44,7 @@ class ProductRepository extends QueryBuilderRepository
 - [findWhereIn(string $sField, array $aWhere, array $aColumns)](#findwherein)
 - [findWhereNotIn(string $sField, array $aWhere, array $aColumns)](#findwherenotin)
 - [first(array $aColumns)](#first)
+- [last(array $aColumns)](#last)
 - [paginate(int $iLimit, array $aColumns, string $sPageName, int $iPage)](#paginate)
 - [create(array $aAttributes)](#create)
 - [update(int $id, array $aAttributes)](#update)
@@ -180,6 +181,17 @@ $oRepository = new ProductRepository();
 $oRepository->first(); //StdClass
 //or
 $oRepository->first(['name']); //StdClass
+
+#### last
+
+Return the last record.
+
+```php
+$oRepository = new ProductRepository();
+
+$oRepository->last(); //StdClass
+//or
+$oRepository->last(['name']); //StdClass
 ```
 
 #### paginate

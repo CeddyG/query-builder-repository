@@ -278,6 +278,22 @@ abstract class QueryBuilderRepository
     }
     
     /**
+     * Get the first record in the database.
+     * 
+     * @param array $aColumns
+     * 
+     * @return stdClass
+     */
+    public function last(array $aColumns = ['*'])
+    {
+        $this->setColumns($aColumns);
+        
+        $aQuery = $this->setQuery()->orderBy($this->sPrimaryKey, 'desc')->take(1)->get($aColumns);
+        
+        return $this->setResponse($aQuery)->first();
+    }
+    
+    /**
      * Paginate the given query into a simple paginator.
      * 
      * @param int $iLimit
