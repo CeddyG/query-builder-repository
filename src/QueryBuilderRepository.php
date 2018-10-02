@@ -1208,39 +1208,35 @@ abstract class QueryBuilderRepository
         
         if (in_array('*', $aColumns))
         {
-            foreach ($this->aFillable as $sFillable)
+            $aFill = array_merge($this->aFillable, array_keys($this->aCustomAttribute));
+            
+            foreach ($aFill as $sFillable)
             {
                 if (method_exists($this, $this->getCustomAttributeFunction($sFillable)))
                 {
                     $this->aCustomAttributeRequest[] = $sFillable;
-                    
-                    if (array_key_exists($sFillable, $this->aCustomAttribute))
-                    {
-                        foreach ($this->aCustomAttribute[$sFillable] as $sNeededColumn)
-                        {
-                            $aColumns[] = $sNeededColumn;
-                        }
-                    }
                 }
             }
         }
-        
-        foreach ($aColumns as $iKey => $sColumn)
+        else
         {
-            if (method_exists($this, $this->getCustomAttributeFunction($sColumn)))
+            foreach ($aColumns as $iKey => $sColumn)
             {
-                $this->aCustomAttributeRequest[] = $sColumn;
-                
-                if (!in_array($sColumn, $this->aFillable))
+                if (method_exists($this, $this->getCustomAttributeFunction($sColumn)))
                 {
-                    unset($aColumns[$iKey]);
-                }
-                
-                if (array_key_exists($sColumn, $this->aCustomAttribute))
-                {
-                    foreach ($this->aCustomAttribute[$sColumn] as $sNeededColumn)
+                    $this->aCustomAttributeRequest[] = $sColumn;
+
+                    if (!in_array($sColumn, $this->aFillable))
                     {
-                        $aColumns[] = $sNeededColumn;
+                        unset($aColumns[$iKey]);
+                    }
+
+                    if (array_key_exists($sColumn, $this->aCustomAttribute))
+                    {
+                        foreach ($this->aCustomAttribute[$sColumn] as $sNeededColumn)
+                        {
+                            $aColumns[] = $sNeededColumn;
+                        }
                     }
                 }
             }
