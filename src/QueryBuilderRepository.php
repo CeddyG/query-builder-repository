@@ -1882,6 +1882,30 @@ abstract class QueryBuilderRepository
     }
     
     /**
+     * Build the searchable columns list for the query.
+     * 
+     * @param array $aData
+     * 
+     * @return array
+     */
+    private function buildSearchableColumns($aData)
+    {
+        $aColumns = [];
+        
+        foreach ($aData['columns'] as $aColumn)
+        {
+            if ($aColumn['searchable'] == 'true')
+            {
+                $aColumns[] = $aColumn['name'] != '' 
+                    ? $aColumn['name'] 
+                    : $aColumn['data'];
+            }
+        }
+        
+        return array_unique($aColumns);
+    }
+    
+    /**
      * Build the order column for the query.
      * 
      * @param array $aColumns
@@ -1985,14 +2009,15 @@ abstract class QueryBuilderRepository
      */
     public function datatable(array $aData, array $aWhere = [])
     {
-        $aColumns   = $this->buildColumns($aData);
+        $aColumns               = $this->buildColumns($aData);
+        $aSearchableColumns     = $this->buildSearchableColumns($aData);
         
         $aOrder     = $aData['order'][0];
         $sOrder     = $this->buildOrderColumn($aColumns, $aOrder['column']);
         
         $oQuery = $this->orderBy($sOrder, $aOrder['dir'])
             ->limit($aData['start'], $aData['length'])
-            ->search($aData['search']['value'], $aColumns, $aColumns, $aWhere);
+            ->search($aData['search']['value'], $aSearchableColumns, $aColumns, $aWhere);
         
         $this->addCustomValues($oQuery, $aData);
         $this->sortCollection($oQuery, $aData['columns'][$aOrder['column']]);
