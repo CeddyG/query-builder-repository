@@ -2012,6 +2012,14 @@ abstract class QueryBuilderRepository
         $aColumns               = $this->buildColumns($aData);
         $aSearchableColumns     = $this->buildSearchableColumns($aData);
         
+        foreach ($aData['columns'] as $aColumn)
+        {
+            if (!is_null($aColumn['search']['value']) && $aColumn['searchable'] == 'true')
+            {
+                $aWhere = array_merge($aWhere, [[$aColumn['data'], '=', $aColumn['search']['value']]]);
+            }
+        }
+        
         $aOrder     = $aData['order'][0];
         $sOrder     = $this->buildOrderColumn($aColumns, $aOrder['column']);
         
