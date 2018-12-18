@@ -949,7 +949,7 @@ abstract class QueryBuilderRepository
                     $oSeek = $oItems;
                 }
                 
-                $oSeek = $oSeek->where($sAttribute, $aValue[$sAttribute]);
+                $oSeek = $oSeek->whereStrict($sAttribute, $aValue[$sAttribute]);
             }
             
             if ($oSeek->isEmpty())
@@ -1613,7 +1613,7 @@ abstract class QueryBuilderRepository
             function ($oItem, $i) use ($sName, $sPrimaryKey, $sForeignKey, $oQueryRelation)
             {
                 $oItem->$sName = $oQueryRelation
-                    ->where($sPrimaryKey, $oItem->$sForeignKey)
+                    ->whereStrict($sPrimaryKey, $oItem->$sForeignKey)
                     ->first();
                 
                 return $oItem;
