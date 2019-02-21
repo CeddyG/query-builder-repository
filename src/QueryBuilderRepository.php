@@ -806,7 +806,7 @@ abstract class QueryBuilderRepository
             
             $id = $this->setQuery()->insertGetId($aFill, $this->getPrimaryKey());
             
-            $this->syncRelations($id, $aFill);
+            $this->syncRelations($id, $aAttributes);
             
             return $id;
         }
