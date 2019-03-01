@@ -1054,6 +1054,8 @@ abstract class QueryBuilderRepository
             
             if (is_array($aRelation) && !empty($aIdToSync))
             {
+                $aIdToSync = !is_array($aIdToSync) ? [$aIdToSync] : $aIdToSync;
+                
                 DB::table($aRelation['table_pivot'])
                     ->whereNotIn($aRelation['other_foreign_key'], $aIdToSync)
                     ->where($aRelation['foreign_key'], $id)
