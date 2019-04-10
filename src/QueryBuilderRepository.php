@@ -651,14 +651,17 @@ abstract class QueryBuilderRepository
         
         $this->aLimit = [];
         
-        $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey);
-        
         if (!empty($this->aOrderBy))
         {
+            $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey, $this->aOrderBy['field']);
             $mId = $mId->orderBy($this->aOrderBy['field'], $this->aOrderBy['direction']);
+            $mId = $mId->get([$this->sTable.'.'.$this->sPrimaryKey, $this->aOrderBy['field']]);
         }
-        
-        $mId = $mId->get([$this->sTable.'.'.$this->sPrimaryKey]);
+        else
+        {
+            $mId = $oQuery->groupBy($this->sTable.'.'.$this->sPrimaryKey);
+            $mId = $mId->get([$this->sTable.'.'.$this->sPrimaryKey]);    
+        }
 
         if (!$mId instanceof Collection)
         {
@@ -2060,7 +2063,32 @@ abstract class QueryBuilderRepository
         
         $oItems->transform(function ($oItem) use ($sPrimaryKey, $sField){
             $oItem->id = $oItem->$sPrimaryKey;
+            
+            $aField = explode('.', $sField);
+            $sField = $aField[0];
             $oItem->text = $oItem->$sField;
+            
+            $iCount = count($aField);
+            for ($i = 0 ; $i < $iCount ; $i++)
+            {
+                if (is_array($oItem->text))
+                {
+                    $oItem->text = array_values($oItem->text)[0];
+                }
+                elseif ($oItem->text instanceof Collection)
+                {
+                    $oItem->text = $oItem->text->first();
+                }
+                elseif (is_object($oItem->text))
+                {
+                    $sField = $aField[$i];
+                    $oItem->text = $oItem->text->$sField;
+                }
+                else
+                {
+                    break;
+                }
+            }            
             
             return $oItem;
         });
