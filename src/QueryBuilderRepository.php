@@ -2021,7 +2021,8 @@ abstract class QueryBuilderRepository
         {
             if (!is_null($aColumn['search']['value']) && $aColumn['searchable'] == 'true')
             {
-                $aWhere = array_merge($aWhere, [[$aColumn['data'], '=', $aColumn['search']['value']]]);
+                $sField = strpos($aColumn['data'], '.') === false ? $this->sTable.'.'.$aColumn['data'] : $aColumn['data'];
+                $aWhere = array_merge($aWhere, [[$sField, '=', $aColumn['search']['value']]]);
             }
         }
         
