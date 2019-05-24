@@ -465,7 +465,8 @@ abstract class QueryBuilderRepository
             
             if (strpos($mCondition[0], '.') !== false)
             {
-                $bWhereInRelation = true;
+                $aExplodeCondition  = explode('.', $mCondition[0]);
+                $bWhereInRelation   = method_exists($this, $aExplodeCondition[0]);
             }
         }
         
