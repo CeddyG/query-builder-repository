@@ -687,9 +687,11 @@ abstract class QueryBuilderRepository
     {
 		if (!empty($aWhere))
 		{
-			return $this->setQueryConnection()
-				->where($aWhere)
-				->count();
+			$oQuery = $this->setQueryConnection();
+            
+            $this->addWhereClause($aWhere, $oQuery, []);
+            
+			return $oQuery->count();
 		}
 		else
 		{
