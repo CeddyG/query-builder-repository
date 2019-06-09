@@ -1395,14 +1395,19 @@ abstract class QueryBuilderRepository
             $sName          = $this->aBelongsTo[0]['name'];
             $sForeignKey    = $this->aBelongsTo[0]['foreign_key'];
             $oRepository    = $this->aBelongsTo[0]['repository'];
+            $aWhere         = $this->aBelongsTo[0]['where'];
  
             if (!$this->hasJoin($oQuery, $oRepository->getTable().' as '.$sName))
             {
+                $aWhere = $this->formatWhereClauseForJoin($aWhere, $sName);
+                
                 $oQuery->leftJoin(
                     $oRepository->getTable().' as '.$sName, 
-                    $sName.'.'.$oRepository->getPrimaryKey(), 
-                    '=', 
-                    $sAlias.'.'.$sForeignKey
+                    function ($oJoin) use ($sName, $oRepository, $sAlias, $sForeignKey, $aWhere) 
+                    {
+                        $oJoin->on($sName.'.'.$oRepository->getPrimaryKey(), '=', $sAlias.'.'.$sForeignKey)
+                             ->where($aWhere);
+                    }
                 );
             }
         }
@@ -1458,17 +1463,42 @@ abstract class QueryBuilderRepository
             $sName          = $this->aHasMany[0]['name'];
             $sForeignKey    = $this->aHasMany[0]['foreign_key'];
             $oRepository    = $this->aHasMany[0]['repository'];
+            $aWhere         = $this->aHasMany[0]['where'];
 
             if (!$this->hasJoin($oQuery, $oRepository->getTable().' as '.$sName))
             {
+                $aWhere = $this->formatWhereClauseForJoin($aWhere, $sName);
+                
                 $oQuery->leftJoin(
                     $oRepository->getTable().' as '.$sName, 
-                    $sName.'.'.$sForeignKey, 
-                    '=', 
-                    $sAlias.'.'.$this->sPrimaryKey
+                    function ($oJoin) use ($sName, $sForeignKey, $sAlias, $aWhere) 
+                    {
+                        $oJoin->on($sName.'.'.$sForeignKey, '=', $sAlias.'.'.$this->sPrimaryKey)
+                             ->where($aWhere);
+                    }
                 );
             }
         }
+    }
+    
+    private function formatWhereClauseForJoin($aWheres, $sAlias)
+    {
+        $aReturnWhere = [];
+        
+        if (!empty($aWheres) && is_array($aWheres[0]))
+        {
+            foreach ($aWheres as $aWhere)
+            {
+                if (strpos('.', $aWhere[0]) === false)
+                {
+                    $aWhere[0] = $sAlias.'.'.$aWhere[0];
+                }
+                
+                $aReturnWhere[] = $aWhere;
+            }
+        }
+        
+        return $aReturnWhere;
     }
     
     /**
@@ -1542,19 +1572,19 @@ abstract class QueryBuilderRepository
      */
     private function setRelations(&$oQuery)
     {
-        foreach($this->aBelongsTo as $relation)
+        foreach($this->aBelongsTo as $aRelation)
         {
-            $this->belongsToQuery($relation, $oQuery);
+            $this->belongsToQuery($aRelation, $oQuery);
         }
         
-        foreach($this->aHasMany as $relation)
+        foreach($this->aHasMany as $aRelation)
         {
-            $this->hasManyQuery($relation, $oQuery);
+            $this->hasManyQuery($aRelation, $oQuery);
         }
         
-        foreach($this->aBelongsToMany as $relation)
+        foreach($this->aBelongsToMany as $aRelation)
         {
-            $this->belongsToManyQuery($relation, $oQuery);
+            $this->belongsToManyQuery($aRelation, $oQuery);
         }
         
         $this->flushRelation();
