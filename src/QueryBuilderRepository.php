@@ -1870,18 +1870,19 @@ abstract class QueryBuilderRepository
     /**
      * Get fill from a given view.
      * 
-     * @param type $sView
+     * @param string $sView
+     * @param array $aExclude
      * 
      * @return \App\Repositories\QueryBuilderRepository
      */
-    public function getFillFromView($sView)
+    public function getFillFromView($sView, array $aExclude = [])
     {
         $sContents = file_get_contents(view($sView)->getPath());
         
         $this->aFillForQuery = [];
         foreach ($this->aFillable as $sFillable)
         {
-            if (stripos($sContents, $sFillable) !== false)
+            if (stripos($sContents, $sFillable) !== false && !in_array($sFillable, $aExclude))
             {
                 $this->aFillForQuery[] = $sFillable;
             }
@@ -1889,7 +1890,7 @@ abstract class QueryBuilderRepository
         
         foreach ($this->aRelations as $sRelation)
         {
-            if (stripos($sContents, $sRelation) !== false)
+            if (stripos($sContents, $sRelation) !== false && !in_array($sRelation, $aExclude))
             {
                 $this->aFillForQuery[] = $sRelation;
             }
