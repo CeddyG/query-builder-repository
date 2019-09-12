@@ -843,7 +843,7 @@ abstract class QueryBuilderRepository
             }
         }
 
-        foreach ($aDefault as $sAttribute => $mValue)
+        foreach ($aDefault as $sAttribute)
         {
             $sFunction = $this->getCustomAttributeFunction($sAttribute, 'set');
 
