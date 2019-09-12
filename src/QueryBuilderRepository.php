@@ -1306,7 +1306,7 @@ abstract class QueryBuilderRepository
      * 
      * @return object
      */
-    private function setQuery()
+    protected function setQuery()
     {
         $oQuery = $this->setQueryConnection();
         
