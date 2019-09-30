@@ -451,7 +451,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function addWhereClause($aWhere, &$oQuery, $aColumns) 
+    protected function addWhereClause($aWhere, &$oQuery, $aColumns) 
     {
         $bWhereInRelation = false;
         foreach($aWhere as $mKey => $mCondition)
@@ -818,7 +818,7 @@ abstract class QueryBuilderRepository
         }
     }
     
-    private function setCustomAttribute(&$aFill, $sMethod)
+    protected function setCustomAttribute(&$aFill, $sMethod)
     {
         if ($sMethod == 'create')
         {
@@ -861,7 +861,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function setCreateTimestamp(&$aAttributes)
+    protected function setCreateTimestamp(&$aAttributes)
     {
         if ($this->bTimestamp)
         {
@@ -984,7 +984,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function setUpdateTimestamp(&$aAttributes)
+    protected function setUpdateTimestamp(&$aAttributes)
     {
         if ($this->bTimestamp)
         {
@@ -1031,7 +1031,7 @@ abstract class QueryBuilderRepository
         return $oQuery->delete();
     }
     
-    private function syncRelations($id, $aAttributes)
+    protected function syncRelations($id, $aAttributes)
     {
         foreach ($aAttributes as $sKey => $mValue)
         {
@@ -1042,7 +1042,7 @@ abstract class QueryBuilderRepository
         }
     }
     
-    private function sync($id, $sRelation, $aIdToSync)
+    protected function sync($id, $sRelation, $aIdToSync)
     {
         if (method_exists($this, $sRelation))
         {
@@ -1200,7 +1200,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function setColumns(array &$aColumns)
+    protected function setColumns(array &$aColumns)
     {
         if (!empty($this->aFillForQuery))
         {
@@ -1329,7 +1329,7 @@ abstract class QueryBuilderRepository
 	 * 
 	 * @return object
 	 */
-	private function setQueryConnection()
+	protected function setQueryConnection()
 	{
 		if ($this->sConnection != '')
         {
@@ -1388,7 +1388,7 @@ abstract class QueryBuilderRepository
      * 
      * @return object|bool
      */
-    private function setLeftJoinOnBelongsTo($sAlias, &$oQuery, &$oRepository = null)
+    protected function setLeftJoinOnBelongsTo($sAlias, &$oQuery, &$oRepository = null)
     {
         if (!empty($this->aBelongsTo))
         {
@@ -1420,7 +1420,7 @@ abstract class QueryBuilderRepository
      * 
      * @return object|bool
      */
-    private function setLeftJoinOnBelongsToMany($sAlias, &$oQuery, &$oRepository = null)
+    protected function setLeftJoinOnBelongsToMany($sAlias, &$oQuery, &$oRepository = null)
     {
         if (!empty($this->aBelongsToMany))
         {
@@ -1456,7 +1456,7 @@ abstract class QueryBuilderRepository
      * 
      * @return object|bool
      */
-    private function setLeftJoinOnHasMany($sAlias, &$oQuery, &$oRepository = null)
+    protected function setLeftJoinOnHasMany($sAlias, &$oQuery, &$oRepository = null)
     {
         if (!empty($this->aHasMany))
         {
@@ -1481,7 +1481,7 @@ abstract class QueryBuilderRepository
         }
     }
     
-    private function formatWhereClauseForJoin($aWheres, $sAlias)
+    protected function formatWhereClauseForJoin($aWheres, $sAlias)
     {
         $aReturnWhere = [];
         
@@ -1508,7 +1508,7 @@ abstract class QueryBuilderRepository
      * 
      * @return \Illuminate\Database\Eloquent\Collection|static[]
      */
-    private function setResponse($mQuery)
+    protected function setResponse($mQuery)
     {
         if (!$mQuery instanceof Collection)
         {
@@ -1533,7 +1533,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function getCustomAttribute(&$oQuery)
+    protected function getCustomAttribute(&$oQuery)
     {
         $oQuery->transform(
             function ($oItem, $i)
@@ -1558,7 +1558,7 @@ abstract class QueryBuilderRepository
         );
     }
     
-    private function getCustomAttributeFunction($sAttribute, $sType = 'get')
+    protected function getCustomAttributeFunction($sAttribute, $sType = 'get')
     {
         return $sType.ucfirst(camel_case($sAttribute)).'Attribute';
     }
@@ -1570,7 +1570,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function setRelations(&$oQuery)
+    protected function setRelations(&$oQuery)
     {
         foreach($this->aBelongsTo as $aRelation)
         {
@@ -1596,7 +1596,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function flushRelation()
+    protected function flushRelation()
     {
         $this->aBelongsTo       = [];
         $this->aHasMany         = [];
@@ -1611,7 +1611,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function sortCollection(&$oQuery, $aColumn)
+    protected function sortCollection(&$oQuery, $aColumn)
     { 
         if ($this->aOrderBy['direction'] == 'asc')
         {
@@ -1631,7 +1631,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function belongsToQuery($aRelation, &$oQuery)
+    protected function belongsToQuery($aRelation, &$oQuery)
     {
         $sName          = $aRelation['name'];
         $sForeignKey    = $aRelation['foreign_key'];
@@ -1667,7 +1667,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function belongsToManyQuery($aRelation, &$oQuery)
+    protected function belongsToManyQuery($aRelation, &$oQuery)
     {
         $sName              = $aRelation['name'];
         $oRepository        = $aRelation['repository'];
@@ -1753,7 +1753,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function hasManyQuery(array $aRelation, &$oQuery)
+    protected function hasManyQuery(array $aRelation, &$oQuery)
     {
         $sName                  = $aRelation['name'];
         $oRepository            = $aRelation['repository'];
@@ -1831,7 +1831,7 @@ abstract class QueryBuilderRepository
      * 
      * @return array
      */
-    private function fillableFromArray(array $aAttributes)
+    protected function fillableFromArray(array $aAttributes)
     {
         if (count($this->aFillable) > 0) 
         {
@@ -1854,7 +1854,7 @@ abstract class QueryBuilderRepository
      * 
      * return void
      */
-    private function formatFieldToStore(&$aAttributes)
+    protected function formatFieldToStore(&$aAttributes)
     {
         foreach ($aAttributes as $sAttribute => $mValue)
         {
@@ -1906,7 +1906,7 @@ abstract class QueryBuilderRepository
      * 
      * @return array
      */
-    private function buildColumns($aData)
+    protected function buildColumns($aData)
     {
         $aColumns = [];
         
@@ -1927,7 +1927,7 @@ abstract class QueryBuilderRepository
      * 
      * @return array
      */
-    private function buildSearchableColumns($aData)
+    protected function buildSearchableColumns($aData)
     {
         $aColumns = [];
         
@@ -1952,7 +1952,7 @@ abstract class QueryBuilderRepository
      * 
      * @return string
      */
-    private function buildOrderColumn($aColumns, $sOrder)
+    protected function buildOrderColumn($aColumns, $sOrder)
     {
         $sColumn = $aColumns[$sOrder];
         
@@ -1977,7 +1977,7 @@ abstract class QueryBuilderRepository
      * 
      * @return void
      */
-    private function addCustomValues(&$oQuery, $aData)
+    protected function addCustomValues(&$oQuery, $aData)
     {
         $oQuery->transform(function ($oItem, $iKey) use ($aData)
         {
@@ -2008,7 +2008,7 @@ abstract class QueryBuilderRepository
      * 
      * @return StdClass
      */
-    private function buildEasterValue($oItem, $sColumnsName, $aValue = [])
+    protected function buildEasterValue($oItem, $sColumnsName, $aValue = [])
     {
         if (strpos($sColumnsName, '.') !== false)
         {
