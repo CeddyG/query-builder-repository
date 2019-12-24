@@ -1560,7 +1560,7 @@ abstract class QueryBuilderRepository
     
     protected function getCustomAttributeFunction($sAttribute, $sType = 'get')
     {
-        return $sType.ucfirst(camel_case($sAttribute)).'Attribute';
+        return $sType.ucfirst(STR::camel($sAttribute)).'Attribute';
     }
     
     /**
