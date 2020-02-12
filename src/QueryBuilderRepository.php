@@ -460,13 +460,21 @@ abstract class QueryBuilderRepository
             {
                 $aWhere[$mKey] = [
                     $mKey, '=', $mCondition
-                ];
+                ];                
+                
+                if (strpos($mKey, '.') !== false)
+                {
+                    $aExplodeCondition  = explode('.', $mKey);
+                    $bWhereInRelation   = method_exists($this, $aExplodeCondition[0]);
+                }
             }
-            
-            if (strpos($mCondition[0], '.') !== false)
+            else
             {
-                $aExplodeCondition  = explode('.', $mCondition[0]);
-                $bWhereInRelation   = method_exists($this, $aExplodeCondition[0]);
+                if (strpos($mCondition[0], '.') !== false)
+                {
+                    $aExplodeCondition  = explode('.', $mCondition[0]);
+                    $bWhereInRelation   = method_exists($this, $aExplodeCondition[0]);
+                }
             }
         }
         
