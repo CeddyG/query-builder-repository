@@ -570,7 +570,7 @@ abstract class QueryBuilderRepository
             }
         }
         
-		$aOrWhere = [];
+        $aOrWhere = [];
         foreach ($aFiealdToSearch as $sColumn)
         {
             if (strpos($sColumn, '.') !== false)
@@ -607,38 +607,38 @@ abstract class QueryBuilderRepository
                 
             if ($sSearch != '')
             {
-				$aOrWhere[] = [$sColumn, 'like', '%'. $sSearch .'%'];
+                $aOrWhere[] = [$sColumn, 'like', '%'. $sSearch .'%'];
             }
         }
-		
-		if (!empty($aWhere))
-		{
-			$this->addWhereClause($aWhere, $oQuery, $aColumns);
-		}
-		
-		$oQuery->where(function($oSubQuery) use ($aOrWhere)
-		{
-			foreach ($aOrWhere as $aWhere)
-			{
-				$oSubQuery->orWhere($aWhere[0], $aWhere[1], $aWhere[2]);
-			}
-		});
-		
-		if (isset($oQueryToCount))
-		{
-			$oQueryToCount->where(function($oSubQuery) use ($aOrWhere)
-			{
-				foreach ($aOrWhere as $aWhere)
-				{
-					$oSubQuery->orWhere($aWhere[0], $aWhere[1], $aWhere[2]);
-				}
-			});
-			
-			if (!empty($aWhere))
-			{
-				$this->addWhereClause($aWhere, $oQueryToCount, $aColumns);
-			}
-		}
+        
+        if (!empty($aWhere))
+        {
+            $this->addWhereClause($aWhere, $oQuery, $aColumns);
+        }
+        
+        $oQuery->where(function($oSubQuery) use ($aOrWhere)
+        {
+            foreach ($aOrWhere as $aWhere)
+            {
+                $oSubQuery->orWhere($aWhere[0], $aWhere[1], $aWhere[2]);
+            }
+        });
+        
+        if (isset($oQueryToCount))
+        {
+            $oQueryToCount->where(function($oSubQuery) use ($aOrWhere)
+            {
+                foreach ($aOrWhere as $aWhere)
+                {
+                    $oSubQuery->orWhere($aWhere[0], $aWhere[1], $aWhere[2]);
+                }
+            });
+            
+            if (!empty($aWhere))
+            {
+                $this->addWhereClause($aWhere, $oQueryToCount, $aColumns);
+            }
+        }
         
         if ($sSearch != '')
         {
@@ -687,24 +687,24 @@ abstract class QueryBuilderRepository
     /**
      * Return the total record in a database.
      * 
-	 * @param array $aWhere
-	 * 
+     * @param array $aWhere
+     * 
      * @return int
      */
     public function count(array $aWhere = [])
     {
-		if (!empty($aWhere))
-		{
-			$oQuery = $this->setQueryConnection();
+        if (!empty($aWhere))
+        {
+            $oQuery = $this->setQueryConnection();
             
             $this->addWhereClause($aWhere, $oQuery, []);
             
-			return $oQuery->count();
-		}
-		else
-		{
-			return $this->setQuery()->count();
-		}
+            return $oQuery->count();
+        }
+        else
+        {
+            return $this->setQuery()->count();
+        }
     }
     
     /**
@@ -1231,6 +1231,14 @@ abstract class QueryBuilderRepository
                 if (method_exists($this, $this->getCustomAttributeFunction($sFillable)))
                 {
                     $this->aCustomAttributeRequest[] = $sFillable;
+                    
+                    if (array_key_exists($sFillable, $this->aCustomAttribute))
+                    {
+                        foreach ($this->aCustomAttribute[$sFillable] as $sNeededColumn)
+                        {
+                            $aColumns[] = $sNeededColumn;
+                        }
+                    }
                 }
             }
         }
@@ -1331,15 +1339,15 @@ abstract class QueryBuilderRepository
         
         return $oQuery;
     }
-	
-	/**
-	 * Create the query with the right connection.
-	 * 
-	 * @return object
-	 */
-	protected function setQueryConnection()
-	{
-		if ($this->sConnection != '')
+    
+    /**
+     * Create the query with the right connection.
+     * 
+     * @return object
+     */
+    protected function setQueryConnection()
+    {
+        if ($this->sConnection != '')
         {
             return DB::connection($this->sConnection)->table($this->sTable);
         }
@@ -1347,7 +1355,7 @@ abstract class QueryBuilderRepository
         {
             return DB::table($this->sTable);            
         }
-	}
+    }
     
     /**
      * Set the join to the query.
@@ -1568,7 +1576,7 @@ abstract class QueryBuilderRepository
     
     protected function getCustomAttributeFunction($sAttribute, $sType = 'get')
     {
-        return $sType.ucfirst(STR::camel($sAttribute)).'Attribute';
+        return $sType.ucfirst(Str::camel($sAttribute)).'Attribute';
     }
     
     /**
