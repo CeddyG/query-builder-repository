@@ -1240,7 +1240,7 @@ abstract class QueryBuilderRepository
             
             foreach ($aFill as $sFillable)
             {
-                if (method_exists($this, $this->getCustomAttributeFunction($sFillable) && $this->bTransformCustomAttribute))
+                if (method_exists($this, $this->getCustomAttributeFunction($sFillable)) && $this->bTransformCustomAttribute)
                 {
                     $this->aCustomAttributeRequest[] = $sFillable;
                     
@@ -1258,7 +1258,7 @@ abstract class QueryBuilderRepository
         {
             foreach ($aColumns as $iKey => $sColumn)
             {
-                if (method_exists($this, $this->getCustomAttributeFunction($sColumn) && $this->bTransformCustomAttribute))
+                if (method_exists($this, $this->getCustomAttributeFunction($sColumn)) && $this->bTransformCustomAttribute)
                 {
                     $this->aCustomAttributeRequest[] = $sColumn;
 
