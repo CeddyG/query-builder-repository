@@ -177,6 +177,13 @@ abstract class QueryBuilderRepository
     protected $bReturnCollection = true;
     
     /**
+     * If we want transform attribute with getAttribute method.
+     * 
+     * @var bool
+     */
+    protected $bTransformCustomAttribute = true;
+    
+    /**
      * Set the database connection, which in config/database.php
      * 
      * @var string
@@ -238,6 +245,11 @@ abstract class QueryBuilderRepository
     public function setReturnCollection($bReturnCollection)
     {
         $this->bReturnCollection = (bool) $bReturnCollection;
+    }
+    
+    public function setTransformCustomAttribute($bTransformCustomAttribute)
+    {
+        $this->bTransformCustomAttribute = (bool) $bTransformCustomAttribute;
     }
     
     public function setConnection($sConnection)
@@ -1228,7 +1240,7 @@ abstract class QueryBuilderRepository
             
             foreach ($aFill as $sFillable)
             {
-                if (method_exists($this, $this->getCustomAttributeFunction($sFillable)))
+                if (method_exists($this, $this->getCustomAttributeFunction($sFillable) && $this->bTransformCustomAttribute))
                 {
                     $this->aCustomAttributeRequest[] = $sFillable;
                     
@@ -1246,7 +1258,7 @@ abstract class QueryBuilderRepository
         {
             foreach ($aColumns as $iKey => $sColumn)
             {
-                if (method_exists($this, $this->getCustomAttributeFunction($sColumn)))
+                if (method_exists($this, $this->getCustomAttributeFunction($sColumn) && $this->bTransformCustomAttribute))
                 {
                     $this->aCustomAttributeRequest[] = $sColumn;
 
@@ -1551,27 +1563,30 @@ abstract class QueryBuilderRepository
      */
     protected function getCustomAttribute(&$oQuery)
     {
-        $oQuery->transform(
-            function ($oItem, $i)
-            {
-                foreach ($oItem as $sAttribute => $mValue)
+        if ($this->bTransformCustomAttribute)
+        {
+            $oQuery->transform(
+                function ($oItem, $i)
                 {
-                    if (in_array($sAttribute, $this->aDates) && $mValue !== null)
+                    foreach ($oItem as $sAttribute => $mValue)
                     {
-                        $oItem->$sAttribute = Carbon::parse($mValue)
-                            ->format($this->sDateFormatToGet);
+                        if (in_array($sAttribute, $this->aDates) && $mValue !== null)
+                        {
+                            $oItem->$sAttribute = Carbon::parse($mValue)
+                                ->format($this->sDateFormatToGet);
+                        }
                     }
+
+                    foreach ($this->aCustomAttributeRequest as $sCustomAttribute)
+                    {
+                        $sFunction = $this->getCustomAttributeFunction($sCustomAttribute);
+                        $oItem->$sCustomAttribute = $this->$sFunction($oItem);
+                    }
+
+                    return $oItem;
                 }
-                
-                foreach ($this->aCustomAttributeRequest as $sCustomAttribute)
-                {
-                    $sFunction = $this->getCustomAttributeFunction($sCustomAttribute);
-                    $oItem->$sCustomAttribute = $this->$sFunction($oItem);
-                }
-            
-                return $oItem;
-            }
-        );
+            );
+        }
     }
     
     protected function getCustomAttributeFunction($sAttribute, $sType = 'get')
