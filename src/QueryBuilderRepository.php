@@ -1996,7 +1996,7 @@ abstract class QueryBuilderRepository
         }
         else
         {
-            return $sColumn;
+            return $this->sTable.'.'.$sColumn;
         }
     }
 
