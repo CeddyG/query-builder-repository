@@ -1595,6 +1595,38 @@ abstract class QueryBuilderRepository
     }
     
     /**
+     * Format all the relation.
+     * 
+     * @param \Illuminate\Database\Eloquent\Collection $oQuery
+     * 
+     * @return void
+     */
+    protected function getCustomRelation(&$oQuery)
+    {
+        $oQuery->transform(
+            function ($oItem, $i)
+            {
+                foreach ($oItem as $sAttribute => $mValue)
+                {
+                    $sFunction = $this->getCustomRelationFunction($sAttribute);
+                    
+                    if (method_exists($this, $sFunction) && in_array($sAttribute, $this->aRelations))
+                    {
+                        $oItem->$sAttribute = $this->$sFunction($oItem);
+                    }
+                }
+            
+                return $oItem;
+            }
+        );
+    }
+    
+    protected function getCustomRelationFunction($sAttribute)
+    {
+        return 'get'.ucfirst(Str::camel($sAttribute)).'Relation';
+    }
+    
+    /**
      * Set relations to the records of the given query.
      * 
      * @param \Illuminate\Database\Eloquent\Collection|static[] $oQuery
@@ -1617,6 +1649,8 @@ abstract class QueryBuilderRepository
         {
             $this->belongsToManyQuery($aRelation, $oQuery);
         }
+        
+        $this->getCustomRelation($oQuery);
         
         $this->flushRelation();
         $this->aEagerLoad = [];
